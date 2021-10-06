@@ -69,4 +69,15 @@ enum BUF_TYPE{
 	LOGFORMBUF,
 };
 
+/* 
+	存放供system执行的指令,
+	由于局部变量的大小有限制,
+	所以需要特别长的指令时,存放于此.
+	但是由于是全局变量,又有多线程操作,
+	所以需要给一个对应的信号量,初始值给1.
+	只供一个人使用,使用完释放信号量.
+*/
+sem_t global_sem_cmd;
+char *global_command;	
+
 #endif

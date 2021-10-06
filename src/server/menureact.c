@@ -56,7 +56,7 @@ void reactMainMenu(int *sockfd)
 			sleep(1);
 	        pthread_exit(0);
 		}else if(strcmp(buf,"ls")==0){
-			listLinklist();
+			listLinklistU(*sockfd);
 		}else if(strcmp(buf,"set")==0){
 			//设置状态
 			//reactSet(*sockfd);

@@ -82,8 +82,15 @@ void mainMenu()
 			killDisplay(msg_key_text);
 			printf("%s","\033[1H\033[2J"); 
 			exit(0);
-		}else if(strcmp(buf,"ls")==0){	/* 退出客户端 */
-			
+		}else if(strcmp(buf,"ls")==0){	/* 罗列列表 */
+			//等待结果
+			if(recv(curSockfd,buf,1024,0)<0)
+				perror("recv");
+			if(strcmp(buf,"LIST_SUCCESS")==0){
+				DPRINTF("罗列完毕(%s)\n",buf);
+			}else{
+				DPRINTF("罗列失败(%s)\n",buf);
+			}
 		}else{
 			printf("\t输入有误,请重新输入\n"); 
 			sleep(1);

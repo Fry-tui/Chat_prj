@@ -144,11 +144,12 @@ typedef struct LnodeR{
 LinklistU U;	//名媛链表头节点 
 LinklistR R;	//红包链表头节点 
 
+int cntUNode(void);
 int modUserNode(struct User);
 int delUserNode(int,char[],int);
 
 void initLink(void);
-void listLinklist(void);
+void listLinklistU(int);
 void addNode(int,struct User,struct Redp);
 
 struct User grepUserNode(int,char[],int);

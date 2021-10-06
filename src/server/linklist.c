@@ -229,14 +229,20 @@ int delUserNode(int key,char name[],int sockfd)
 ****************************************************************************************
 *                                罗列用户链表
 *
-* @Desc  : 
-* @key   : 
-* @return: 
+* @Desc  : 表单形式罗列节点
+* @sockfd: 目前调用是由登入前客户端调用需要通信调用结果,所以需要传sockfd
+* @return: 空
+示例:
+	zenity --list --print-column=all --text=用户总数:2 --column=用户 --column=密码 --column=电话 --column=
+	余额 --column=在线/离线 --column=群聊状态 --column=sockfd --column=msg_id --column=msg_key --column=
+	进程号 --column=合法性 --column=上线时长 --column=好友数量 --column=验证消息 --column=未读消息 
+	xyq 8926 18950238926 0.00 在线 打开 01 null null null 合法 1633514688 0 0 0 sxl 123 13459864587 0.00 离线 
+	关闭 4 null null null 合法 0 0 0 0
 ****************************************************************************************
 */
-void listLinklistU(void)
+void listLinklistU(int sockfd)
 {
-	int cnt;
+	int cnt,res;
 	char buf[32];
 	LinklistU u = U->next;
 
@@ -251,8 +257,8 @@ void listLinklistU(void)
 	strcat(global_command,buf); /* 用户总数 */
 	strcat(global_command," --column=用户 --column=密码 --column=电话 --column=余额");
 	strcat(global_command," --column=在线/离线 --column=群聊状态 --column=sockfd --column=msg_id");
-	strcat(global_command," --column=msg_key --column=进程号 --column=线程号 --column=合法性");
-	strcat(global_command," --column=上线时长\(s\) --column=好友数量 --column=验证消息 --column=未读消息 ");
+	strcat(global_command," --column=msg_key --column=进程号 --column=合法性");
+	strcat(global_command," --column=上线时长 --column=好友数量 --column=验证消息 --column=未读消息 ");
 	while(u){
 		strcat(global_command,u->user.name);
 		strcat(global_command," ");
@@ -280,8 +286,11 @@ void listLinklistU(void)
 			strcpy(buf,"关闭");
 		strcat(global_command,buf);
 		strcat(global_command," ");
-		
-		sprintf(buf,"%d",u->user.sockfd);
+		if(u->user.sockfd<0)
+			strcpy(buf,"01");
+		else{
+			sprintf(buf,"%d",u->user.sockfd);
+		}	
 		strcat(global_command,buf);
 		strcat(global_command," ");
 		
@@ -294,10 +303,6 @@ void listLinklistU(void)
 		strcat(global_command,u->user.login_pid);
 		strcat(global_command," ");
 		
-		sprintf(buf,"%d",(int)u->user.msg_pid);
-		strcat(global_command,buf);
-		strcat(global_command," ");
-		
 		if(u->user.avail_flag==LEGAL)
 			strcpy(buf,"合法");
 		else
@@ -305,7 +310,7 @@ void listLinklistU(void)
 		strcat(global_command,buf);
 		strcat(global_command," ");
 		
-		sprintf(buf,"%d",u->user.duration);
+		sprintf(buf,"%ld",u->user.duration);
 		strcat(global_command,buf);
 		strcat(global_command," ");
 		
@@ -320,10 +325,20 @@ void listLinklistU(void)
 		sprintf(buf,"%d",u->user.unread_msg_num);
 		strcat(global_command,buf);
 		strcat(global_command," ");
-		
 		u=u->next;
 	}
+	//DPRINTF("global_command=%s\n",global_command);
+	res = system(global_command);
 	sem_post(&global_sem_cmd);
+
+	if(res==0){
+		if(send(sockfd,"LIST_SUCCESS",32,0)<0)
+			perror("send");
+	}else{ /* 256:FAILD */
+		if(send(sockfd,"LIST_FAILD",32,0)<0)
+			perror("send");
+	}
+	
 	return;
 }
 
