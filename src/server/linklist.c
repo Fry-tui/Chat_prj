@@ -225,14 +225,126 @@ int delUserNode(int key,char name[],int sockfd)
 	return FAILD;
 }
 
-void listLinklist(void)
+/*
+****************************************************************************************
+*                                罗列用户链表
+*
+* @Desc  : 
+* @key   : 
+* @return: 
+****************************************************************************************
+*/
+void listLinklistU(void)
 {
+	int cnt;
+	char buf[32];
 	LinklistU u = U->next;
+
+	DPRINTF("[ \033[34mInfo\033[0m ] 等待可执行信号\n");
+	sem_wait(&global_sem_cmd); /* 等待信号量被释放 */
+	DPRINTF("[ \033[34mInfo\033[0m ] 输出就绪\n");
+	cnt = cntUNode();
+	sprintf(buf,"%d",cnt);
+	global_command = (char *)malloc(cnt*sizeof(struct User));
+	/* 多选:--multiple 可编辑:--editable */
+	strcpy(global_command,"zenity --list --print-column=all --text=用户总数:");
+	strcat(global_command,buf); /* 用户总数 */
+	strcat(global_command," --column=用户 --column=密码 --column=电话 --column=余额");
+	strcat(global_command," --column=在线/离线 --column=群聊状态 --column=sockfd --column=msg_id");
+	strcat(global_command," --column=msg_key --column=进程号 --column=线程号 --column=合法性");
+	strcat(global_command," --column=上线时长\(s\) --column=好友数量 --column=验证消息 --column=未读消息 ");
 	while(u){
-		printf("name:%s|pwd:%s|pid:%s|\nmsg_id:%s|msg_key:%s|tel:%s\n",u->user.name,u->user.password,u->user.login_pid,u->user.msg_id_text,u->user.msg_key_text,u->user.telenumber);
-		printf("fd:%d|add_n=%d|gps:%d|online:%d\n",u->user.sockfd,u->user.add_num,u->user.group_state,u->user.online_state);
-		printf("money:%f\n",u->user.balance);
+		strcat(global_command,u->user.name);
+		strcat(global_command," ");
+	
+		strcat(global_command,u->user.password);
+		strcat(global_command," ");
+		
+		strcat(global_command,u->user.telenumber);
+		strcat(global_command," ");
+		
+		sprintf(buf,"%.2f",u->user.balance);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		if(u->user.online_state==1)
+			strcpy(buf,"在线");
+		else
+			strcpy(buf,"离线");
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		if(u->user.group_state==1)
+			strcpy(buf,"打开");
+		else
+			strcpy(buf,"关闭");
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		sprintf(buf,"%d",u->user.sockfd);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		strcat(global_command,u->user.msg_id_text);
+		strcat(global_command," ");
+		
+		strcat(global_command,u->user.msg_key_text);
+		strcat(global_command," ");
+		
+		strcat(global_command,u->user.login_pid);
+		strcat(global_command," ");
+		
+		sprintf(buf,"%d",(int)u->user.msg_pid);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		if(u->user.avail_flag==LEGAL)
+			strcpy(buf,"合法");
+		else
+			strcpy(buf,"非法");
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		sprintf(buf,"%d",u->user.duration);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		sprintf(buf,"%d",u->user.friend_num);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		sprintf(buf,"%d",u->user.add_num);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		sprintf(buf,"%d",u->user.unread_msg_num);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
 		u=u->next;
 	}
+	sem_post(&global_sem_cmd);
 	return;
 }
+
+
+/*
+****************************************************************************************
+*                                计算用户节点个数
+*
+* @Desc  : 遍历节点数
+* @Para  : void 
+* @return: 节点数
+****************************************************************************************
+*/
+int cntUNode(void)
+{
+	int cnt=0;
+	LinklistU u = U->next;
+	while(u){
+		cnt++;
+		u=u->next;
+	}
+	return cnt;
+}
+
