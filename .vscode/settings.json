@@ -3,6 +3,7 @@
         "menu.h": "c",
         "client.h": "c",
         "linklist.h": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "command.h": "c"
     }
 }

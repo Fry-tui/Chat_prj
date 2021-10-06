@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "app.h"
 #include "msgops.h"
 #include "../common/command.h"
 

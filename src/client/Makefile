@@ -1,5 +1,5 @@
 CC = gcc
-OBJS = client.o menu.o msgops.o ../common/command.o
+OBJS = client.o menu.o msgops.o app.o ../common/command.o
 TARGET = ../../bin/client
 
 $(TARGET):$(OBJS)

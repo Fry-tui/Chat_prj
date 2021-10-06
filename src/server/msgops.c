@@ -53,7 +53,7 @@ char *myRecv(int sockfd)
 						/* 加static修饰符是为了改变buf的生命周期,使其成为全局变量,供调用者使用 						   */
 	memset(buf,0,1024); /* 清除数据区 */
 	recv_len = recv(sockfd,buf,1024,0);
-	printf("recv_buf:%s\n",buf);
+	DPRINTF("[ \033[33mRecv_Buf\033[0m ] : %s\n",buf);
 	if(recv_len<0){ 
 		/* 接收出错 SOCKET_ERROR */
 		perror("[ \033[31mError\033[0m ] msghand.c myRecv():");

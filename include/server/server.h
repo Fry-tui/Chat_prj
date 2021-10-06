@@ -28,6 +28,7 @@
 #include "fileops.h"
 #include "linklist.h"
 #include "menureact.h"
+#include "appserver.h"
 #include "../common/command.h"
 
 //宏开关
