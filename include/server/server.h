@@ -23,9 +23,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "bufops.h"
+#include "msgops.h"
 #include "fileops.h"
 #include "linklist.h"
-#include "msghandle.h"
 #include "menureact.h"
 #include "../common/command.h"
 
@@ -46,6 +47,7 @@
 #define INVALID 0
 #define LEGAL 0
 #define ILLEGAL -1
+#define LENILLEGAL 1
 
 /************************************
  *      		ENUM				*
@@ -63,6 +65,7 @@ enum KEY_TYPE{
 //枚举缓冲种类
 enum BUF_TYPE{
 	REGFORMBUF,
+	LOGFORMBUF,
 };
 
 #endif

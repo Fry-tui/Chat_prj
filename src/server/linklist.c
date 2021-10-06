@@ -162,7 +162,7 @@ struct User * reviseUserNode(int key,char name[],int sockfd)
 			}
 			u = u->next;
 		}
-		DPRINTF("[ \033[34mInfo\033[0m ] linklist.c reviseUserNode():未找到节点\n");
+		DPRINTF("[ \033[34mInfo\033[0m ] linklist.c reviseUserNode():无该节点\n");
 	}else if(key==SOCKFD){
 		while(u){
 			if(u->user.sockfd==sockfd){
@@ -170,7 +170,7 @@ struct User * reviseUserNode(int key,char name[],int sockfd)
 			}
 			u = u->next;
 		}
-		DPRINTF("[ \033[34mInfo\033[0m ] linklist.c reviseUserNode():未找到节点\n");
+		DPRINTF("[ \033[34mInfo\033[0m ] linklist.c reviseUserNode():无该节点\n");
 	}else{
 		printf("[ \033[31mError\033[0m ] linklist.c reviseUserNode():无法识别关键字类型\n");
 	}
@@ -225,4 +225,14 @@ int delUserNode(int key,char name[],int sockfd)
 	return FAILD;
 }
 
-
+void listLinklist(void)
+{
+	LinklistU u = U->next;
+	while(u){
+		printf("name:%s|pwd:%s|pid:%s|\nmsg_id:%s|msg_key:%s|tel:%s\n",u->user.name,u->user.password,u->user.login_pid,u->user.msg_id_text,u->user.msg_key_text,u->user.telenumber);
+		printf("fd:%d|add_n=%d|gps:%d|online:%d\n",u->user.sockfd,u->user.add_num,u->user.group_state,u->user.online_state);
+		printf("money:%f\n",u->user.balance);
+		u=u->next;
+	}
+	return;
+}

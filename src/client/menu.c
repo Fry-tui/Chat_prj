@@ -30,7 +30,7 @@ void clientRegister(void)
 {
 	int i,res;
 	Msg msg_send = {-1,"none"};
-	char buf[32],pwd[32],code[8],name[32],number[32],command[256];
+	char buf[32],code[8],name[32],number[32],command[256];
 	
 	msg_send.choice=INULLMENU;
 	strcpy(msg_send.text,"%s\",\"\033[1H\033[2J");
@@ -90,9 +90,10 @@ void clientRegister(void)
 
 	//用户名&密码
 	while(1){
-		/* > ./data/ipbuffer/form_inet_ip_text */
-		strcpy(command,"zenity --forms --text=注册 --add-entry=用户名 --add-password=密码 --add-password=确认密码 > ./data/ipbuffer/form_");
+		/* > ./data/ipbuffer/inet_ip_text_form */
+		strcpy(command,"zenity --forms --text=注册 --add-entry=用户名 --add-password=密码 --add-password=确认密码 > ./data/ipbuffer/");
 		strcat(command,inet_ip_text);
+		strcat(command,"_form");
 		res = system(command); /* 0:成功 256:退出 */
 		
 		sprintf(buf,"%d",res);
@@ -108,30 +109,32 @@ void clientRegister(void)
 				myMsgSend(msg_send);
 				sleep(1);
 				return;
-			}else if(strcmp(buf,"READOVER")==0){ 
-				/*正常读取:不做操作*/
-			}else{/*代表接收到了其他send,报错终止注册退出*/
-				strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c register():无法识别,即将终止注册函数\n");
+			}else if(strcmp(buf,"LENILLEGAL")==0){ 
+				/*长度违法*/
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
 				myMsgSend(msg_send);
-				//同时告诉服务器退出响应注册函数
-				if(send(curSockfd,"recv_error",32,0)<0)
-					perror("send");
-				return;
+				system("zenity --error --text=\"输入数据过长\" --no-wrap --title=注册");
+				continue;
 			}
+			
 			//等待服务器读取判断结果
 			if(recv(curSockfd,buf,32,0)<0)
 				perror("recv");
 			if(strcmp(buf,"pwd")==0){	/* 接收到pwd代表密码不一致 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 密码 \033[31mX\033[0m\n");
 				myMsgSend(msg_send);
+				system("zenity --error --text=\"密码不一致\" --no-wrap --title=注册");
+				continue;
 			}else if(strcmp(buf,"name")==0){ /* 接收到name代表已占用 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 名媛名 \033[31mX\033[0m\n");
 				myMsgSend(msg_send);
+				system("zenity --error --text=\"用户名已被占用\" --no-wrap --title=注册");
+				continue;
 			}else if(strcmp(buf,"NULL")==0){ /* 有表单输入为空 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
 				myMsgSend(msg_send);
 				system("zenity --error --text=\"输入框不能为空\" --no-wrap --title=注册");
-				break;
+				continue;
 			}else if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户名 \033[32m✔\033[0m\n");
 				myMsgSend(msg_send);
@@ -139,7 +142,9 @@ void clientRegister(void)
 				myMsgSend(msg_send);
 				break;
 			}else{ /*代表接收到了其他send,报错终止注册退出*/
-				strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c register()2:无法识别,即将终止注册函数\n");
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c register():无法识别");
+				strcat(msg_send.text,buf);
+				strcat(msg_send.text,",即将终止注册函数\n");
 				myMsgSend(msg_send);
 				//同时告诉服务器退出响应注册函数
 				if(send(curSockfd,"recv_error",32,0)<0)
@@ -159,7 +164,7 @@ void clientRegister(void)
 	//等待注册结果
 	if(recv(curSockfd,buf,32,0)<0)
 		perror("recv");
-	printf("buf = %s\n",buf);
+	//printf("buf = %s\n",buf);
 	if(strcmp(buf,"reg_success")==0){
 		if(recv(curSockfd,name,32,0)<0)
 			perror("recv");
@@ -184,92 +189,143 @@ void clientRegister(void)
 */
 void clientLogin()
 {
-	//pid_t pid;
+	pid_t pid;
 	int res;
-	char buf[32],command[256];
+	char buf[32],name[32],command[256];
 	Msg msg_send = {-1,"none"};
-	
+
+	/* 进行显示屏清空输出 */
 	msg_send.choice=INULLMENU;
 	strcpy(msg_send.text,"%s\",\"\033[1H\033[2J");
 	myMsgSend(msg_send);
 	strcpy(msg_send.text,"\t-----------Login-----------\n");
 	myMsgSend(msg_send);
 	
-	strcpy(command,"zenity --forms --text=登入 --add-entry=用户名 --add-password=密码 > ./data/ipbuffer/form_");
-	strcat(command,inet_ip_text);
-	res = system(command); /* 0:成功 256:退出 */
-
-	sprintf(buf,"%d",res);
-	if(send(curSockfd,buf,32,0)<0)
-		perror("send");
-		
-	if(res==0){
-		//等待服务器读取数据结果
-		if(recv(curSockfd,buf,32,0)<0)
-			perror("recv");
-		if(strcmp(buf,"ILLEGAL")==0){	/* 没有读到消息 */
-			strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c login():表单数据缓冲失败,即将终止登入函数\n");
+	while(1){
+		/* 打开表单弹窗 */
+		strcpy(command,"zenity --forms --text=登入 --add-entry=用户名 --add-password=密码 > ./data/ipbuffer/");
+		strcat(command,inet_ip_text);
+		strcat(command,"_form");
+		res = system(command); /* 0:成功 256:退出 */
+		/* 发送表单函数 */
+		sprintf(buf,"%d",res);
+		if(send(curSockfd,buf,32,0)<0)
+			perror("send");
+			
+		if(res==0){
+			//等待服务器读取数据结果
+			if(recv(curSockfd,buf,32,0)<0)
+				perror("recv");
+			if(strcmp(buf,"ILLEGAL")==0){	/* 没有读到消息 */
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c login():表单数据缓冲失败,即将终止登入函数\n");
+				myMsgSend(msg_send);
+				sleep(1);
+				return;
+			}else if(strcmp(buf,"LENILLEGAL")==0){ 
+				/*长度违法*/
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"输入数据过长\" --no-wrap --title=登入");
+				continue;
+			}
+			
+			//等待服务器读取判断结果
+			if(recv(curSockfd,buf,32,0)<0)
+				perror("recv");
+			
+			if(strcmp(buf,"pwd")==0){	/* 接收到pwd代表密码不一致 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 密码 \033[31m有误\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"密码不正确\" --no-wrap --title=登入");
+				continue;
+			}else if(strcmp(buf,"name")==0){ /* 接收到name代表未注册 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 该用户 \033[31m未注册\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"用户不存在\" --no-wrap --title=登入");
+				continue;
+			}else if(strcmp(buf,"NULL")==0){ /* 有表单输入为空 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"输入框不能为空\" --no-wrap --title=登入");
+				continue;
+			}else if(strcmp(buf,"on_line")==0){ /* 接收到on_line代表已在线 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 该用户 \033[31m已在其他设备登入\033[0m\n");
+				myMsgSend(msg_send);
+				continue;
+			}else if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户名 \033[32m✔\033[0m\n");
+				myMsgSend(msg_send);
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 密码  \033[32m✔\033[0m\n");
+				myMsgSend(msg_send);
+				break;
+			}else{ /*代表接收到了其他send,报错终止登入退出*/
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c login():无法识别");
+				strcat(msg_send.text,buf);
+				strcat(msg_send.text,",即将终止登入函数\n");
+				myMsgSend(msg_send);
+				//同时告诉服务器退出响应注册函数
+				if(send(curSockfd,"recv_error",32,0)<0)
+					perror("send");
+				return;
+			}
+		}else{ /* 窗口点击取消或是关闭 */
+			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 登入程序 \033[31m已被中断,exiting..\033[0m\n");
 			myMsgSend(msg_send);
 			sleep(1);
 			return;
-		}else if(strcmp(buf,"READOVER")==0){ 	/*正常读取,不做操作*/
-			
-		}else{		/*代表接收到了其他send,报错终止注册退出*/
-			strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c login():无法识别,即将终止登入函数\n");
-			myMsgSend(msg_send);
-			//同时告诉服务器退出响应注册函数
-			if(send(curSockfd,"recv_error",32,0)<0)
-				perror("send");
-			return;
 		}
-		
-		//等待服务器读取判断结果
-		if(recv(curSockfd,buf,32,0)<0)
-			perror("recv");
-		
-		if(strcmp(buf,"pwd")==0){	/* 接收到pwd代表密码不一致 */
-			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 密码 \033[31m有误\033[0m\n");
-			myMsgSend(msg_send);
-		}else if(strcmp(buf,"name")==0){ /* 接收到name代表未注册 */
-			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户 \033[31m未注册\033[0m\n");
-			myMsgSend(msg_send);
-		}else if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
-			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户名 \033[32m✔\033[0m\n");
-			myMsgSend(msg_send);
-			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 密码  \033[32m✔\033[0m\n");
-			myMsgSend(msg_send);
-			break;
-		}else{ /*代表接收到了其他send,报错终止注册退出*/
-			strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c login():无法识别,即将终止注册函数\n");
-			myMsgSend(msg_send);
-			//同时告诉服务器退出响应注册函数
-			if(send(curSockfd,"recv_error",32,0)<0)
-				perror("send");
-			return;
-		}
-	}else{ 
-		strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 登入程序 \033[31m已被中断,exiting..\033[0m\n");
-		myMsgSend(msg_send);
-		sleep(1);
-		return;
 	}
 	
 	//发送需要的资源
 	/*进程号*/
-	//pid = getpid();
-	//sprintf(buf,"%d",pid);
-	//if(send(curSockfd,buf,32,0)<0)
-		//perror("send");
-	/*消息队列标识符*/
-	//sprintf(buf,"%d",msg_id);
-	//if(send(curSockfd,buf,32,0)<0)
-		//perror("send");
+	pid = getpid();
+	sprintf(buf,"%d",pid);
+	if(send(curSockfd,buf,32,0)<0)
+		perror("send");
+	printf("curSockfd=%d,id=%d,buf=%s\n",curSockfd,pid,buf);
 	/*消息队列key值*/
-	//if(send(curSockfd,msg_key_text,32,0)<0)
-		//perror("send");
-	//等待注册结果
-	return;
+	strcpy(buf,msg_key_text);
+	if(send(curSockfd,buf,32,0)<0)
+		perror("send");
+	printf("curSockfd=%d msg_key_text=%s buf=%s\n",curSockfd,msg_key_text,buf);
+	sleep(1);
+	/*消息队列标识符*/
+	sprintf(buf,"%d",msg_id);
+	if(send(curSockfd,buf,32,0)<0)
+		perror("send");
+	printf("curSockfd=%d msg_id=%d,buf=%s\n",curSockfd,msg_id,buf);
+
+	printf("send_over\n");
+	//等待登入结果
+	if(recv(curSockfd,buf,32,0)<0)
+		perror("recv");
+	//printf("buf = %s\n",buf);
+	if(strcmp(buf,"log_success")==0){
+		if(recv(curSockfd,name,32,0)<0)
+			perror("recv");
+		strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户\033[36m");
+		strcat(msg_send.text,name);
+		strcat(msg_send.text,"\033[0m \033[32m登入成功\033[0m\n");
+		myMsgSend(msg_send);
+		system("zenity --info --text=\"登入成功\" --no-wrap --title=登入");
+	}else{
+		system("zenity --warning --text=\"登入失败\" --no-wrap --title=登入");
+		return;
+	}
+	DPRINTF("cd userMenu\n");
+	//userMenu();
+	DPRINTF("exit userMenu\n");
 	
+	if(recv(curSockfd,buf,32,0)<0)
+		perror("recv");
+	if(strcmp(buf,"login_out_success")==0){
+		strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户\033[36m");
+		strcat(msg_send.text,name);
+		strcat(msg_send.text,"\033[0m \033[32m即将退出登入\033[0m\n");
+		myMsgSend(msg_send);
+		sleep(1);
+	}
+	return;
 }
 
 /*
@@ -324,7 +380,7 @@ void mainMenu()
 		if(strcmp(buf,"1")==0){
 			clientRegister();
 		}else if(strcmp(buf,"2")==0){
-			clientLogin()
+			clientLogin();
 		}else if(strcmp(buf,"3")==0){
 			//reSet(); 
 		}else if(strcmp(buf,"4")==0){
@@ -335,6 +391,8 @@ void mainMenu()
 			killDisplay(msg_key_text);
 			printf("%s","\033[1H\033[2J"); 
 			exit(0);
+		}else if(strcmp(buf,"ls")==0){	/* 退出客户端 */
+			
 		}else{
 			printf("\t输入有误,请重新输入\n"); 
 			sleep(1);

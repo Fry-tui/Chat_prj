@@ -36,7 +36,7 @@ void writeFile(int type)
 	LinklistR r = R->next; /* 创建红包节点指针 */
 	if(type == USER){
 		//保存用户数据 
-		fd = open(USER_SRC,O_RDWR|O_CREAT); /* 打开文件 */
+		fd = open(USER_SRC,O_RDWR|O_CREAT|O_TRUNC,0777); /* 打开文件 */
 		while(u){	/*遍历链表*/
 			write(fd,&u->user,sizeof(struct User)); /* 往结构体里写入一个节点大小的数据 */
 			u = u->next;	/* 指针后移 */
@@ -67,23 +67,25 @@ void writeFile(int type)
 */
 void readFile(void)
 {
-	FILE *fp;	/* 声明文件指针 */
+	int fd; /* 创建文件描述符 */
 	struct User user; /* 存读到的数据并加入新节点 */
 	struct Redp redp;
-	fp = fopen(USER_SRC,"r+b"); /* 打开文件 */
-	if(fp!=NULL){
-		while(fread(&user,sizeof(struct User),1,fp)==1){
+	fd = open(USER_SRC, O_RDONLY); /* 打开文件 */
+	if(fd!=-1){	
+		DPRINTF("[ \033[34mInfo\033[0m ] fileops.c readFile()U:已打开\n");
+		while( read(fd,&user,sizeof(struct User))> 0){
 			addNode(USER,user,redp);	/* 将数据存入链表 */
 		}
-		fclose(fp); /* 关闭文件指针 */
+		close(fd); /* 关闭文件指针 */
 	}
 	
-	fp = fopen(REDP_SRC,"r+b"); /* 重新打开新文件 */
-	if(fp!=NULL){
-		while(fread(&redp,sizeof(struct Redp),1,fp)==1){
+	fd = open(REDP_SRC,O_RDONLY); /* 重新打开新文件 */
+	if(fd!=-1){	
+		DPRINTF("[ \033[34mInfo\033[0m ] fileops.c readFile()R:已打开\n");
+		while(read(fd,&redp,sizeof(struct Redp))> 0){
 			addNode(REDP,user,redp);
 		}
-		fclose(fp);
+		close(fd);
 	}
 	
 	return;

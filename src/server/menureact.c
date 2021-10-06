@@ -19,54 +19,6 @@
 */
 #include "../../include/server/menureact.h"
 
-void readBuffer(int type,int cnt,struct Buffer *buffer,char inet_ip[])
-{
-	int i=0,j=0,k=0;
-	int fd;
-	char src[64];
-	char buf[64],out[cnt][32];
-	if(type == REGFORMBUF){
-		//打开文件
-		strcpy(src,"./data/ipbuffer/form_");
-		strcat(src,inet_ip);
-		fd = open(src, O_RDONLY);
-		printf("src=%s\n",src);
-		//用分隔符号去读取文件
-		if(fd!=-1){	
-			printf("fd!=-1\n");	
-			while(read(fd,buf,sizeof(buf)) > 0){
-				break;
-			}
-		}
-		//printf("buf=%s\n",buf);
-
-		for(i=0;i<3;i++){
-			k=0;
-			while((buf[j] != '|' ) && (buf[j] != '\n')){
-				out[i][k++]=buf[j++];
-			}
-			out[i][k]='\0';
-			j++;
-		}
-		strcpy(buffer->name,out[0]);
-		strcpy(buffer->pwd,out[1]);
-		strcpy(buffer->psd,out[2]);
-		
-		//关闭文件指针
-		close(fd);
-		/* @[Warn] :做info输出 */
-		DPRINTF("[ \033[34mInfo\033[0m ] 用户名:%s|密码:%s|密码:%s\n",buffer->name,buffer->pwd,buffer->psd);
-		//使其有效
-		buffer->avail_flag = LEGAL;
-		return;
-	}else{
-		printf("\033[31m[Error]\033[0m bufops.c readBuffer():无法识别要解析的缓冲类型\n");
-		buffer->avail_flag = ILLEGAL; /*让结构体失效 */
-		return;
-	}
-	return;
-}
-
 /*
 ****************************************************************************************
 *                              		注册响应函数
@@ -104,14 +56,19 @@ void reactRegister(int sockfd,char inet_ip[])
 	//用户名&密码
 	while(1){
 		strcpy(buf,myRecv(sockfd));
-		if(strcmp(buf,"0")==0){	/* 存成功 */
+		if(strcmp(buf,"0")==0){	/* 存入buffer成功 */
 			//读表单数据函数
-			readBuffer(REGFORMBUF,3,(void *)buffer,inet_ip);// 格式,
+			readBuffer(REGFORMBUF,3,"_form",(void *)buffer,inet_ip);
 			if(buffer->avail_flag==ILLEGAL){
 				//发送不合法
 				if(send(sockfd,"ILLEGAL",32,0)<0)
 					perror("send");
 				return;
+			}else if(buffer->avail_flag==LENILLEGAL){
+				//发送长度不合法
+				if(send(sockfd,"LENILLEGAL",32,0)<0)
+					perror("send");
+				continue;
 			}else{
 				//发送读到了
 				if(send(sockfd,"READOVER",32,0)<0)
@@ -119,11 +76,11 @@ void reactRegister(int sockfd,char inet_ip[])
 			}
 
 			/* 如果接收空输入 */
-			if(strcmp(buffer->name,"")==0)||(strcmp(buffer->pwd,"")==0))
+			if((strcmp(buffer->name,"")==0)||(strcmp(buffer->pwd,"")==0))
 			{
 				if(send(sockfd,"NULL",32,0)<0)
 					perror("send");
-				return;
+				continue;
 			}
 			//判断数据 用户名和密码一起判断
 			if(strcmp(buffer->psd,buffer->pwd)!=0){
@@ -135,13 +92,14 @@ void reactRegister(int sockfd,char inet_ip[])
 				//告知用户名已存在
 				if(send(sockfd,"name",32,0)<0)
 					perror("send");
+				continue;
 			}else{
 				//告知成功
 				if(send(sockfd,"success",32,0)<0)
 					perror("send");
 				break;
 			}
-		}else if(strcmp(buf,"recv_error")==0){ /* 如果客户端退出 */
+		}else if(strcmp(buf,"recv_error")==0){ /* 如果客户端因为接收异常退出退出 */
 			return;
 		}else{	/* 存失败 */
 			printf("[ \033[31mError\033[0m ] reactRegister():客户端中断注册\n");
@@ -174,30 +132,31 @@ void reactRegister(int sockfd,char inet_ip[])
 		strcpy(user.unread_msg[i],"");
 	}
 	//printf("arr ovrt\n");
-	user.group_state=-1;
-	user.online_state=-1;
+	user.group_state = -1;
+	user.online_state = -1;
 	user.balance = 0;
 	user.login_t = 0;
 	user.duration = 0;
 	for(i=0;i<64;i++){
 		sem_init(&user.sem[i],0,0);
 	}
+	user.react_msg_id=-1;
 	//printf("set over\n");
 	//添加节点
 	addNode(USER,user,empty);
 	//printf("addNode over\n");
 	//存档
 	writeFile(USER);
+	/* @[Warn]:数据data文件夹新增用户文件,注册时需要添加，移除时也要 */
+	strcpy(command,"mkdir ./data/");
+	strcat(command,user.name);
+	system(command);
 	//printf("writeFile over\n");
 	if(send(sockfd,"reg_success",32,0)<0)
 		perror("send");
 	DPRINTF("[ \033[34mInfo\033[0m ] 用户:%s完成注册\n",user.name);
 	if(send(sockfd,user.name,32,0)<0)
 		perror("send");	
-	/* @[Warn]:数据data文件夹新增用户文件,登入时需要添加，移除时也要 */
-	strcpy(command,"mkdir ./data/");
-	strcat(command,user.name);
-	system(command);
 	/* @[Warn]:有用到avail_flag成员的地方需要注意,默认初始值是随机数 */
 	return;
 }
@@ -211,12 +170,135 @@ void reactRegister(int sockfd,char inet_ip[])
 */
 void reactLogin(int sockfd,char inet_ip[])
 {
-	struct User user;
+	int i,num;
+	char buf[32];
+	char command[32];
+	struct User *user;
+	struct Redp empty;
+	struct Buffer *buffer;
+	pthread_t id;
+	buffer = (struct Buffer *)malloc(sizeof(struct Buffer));
 
-	//获取其余数据
-	strcpy(user.login_pid,myRecv(sockfd));
-	strcpy(user.msg_id_text,myRecv(sockfd));
-	strcpy(user.msg_key_text,myRecv(sockfd));
+	//用户名&密码
+	while(1){
+
+		strcpy(buf,myRecv(sockfd)); /* 等待执行表单的返回结果 */
+
+		if(strcmp(buf,"0")==0){	 /* 存入数据成功 */
+			//读表单数据函数
+			readBuffer(LOGFORMBUF,2,"_form",(void *)buffer,inet_ip);
+			if(buffer->avail_flag==ILLEGAL){
+				//发送不合法
+				if(send(sockfd,"ILLEGAL",32,0)<0)
+					perror("send");
+				return;
+			}else if(buffer->avail_flag==LENILLEGAL){
+				//发送长度不合法
+				if(send(sockfd,"LENILLEGAL",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				//发送读到了
+				if(send(sockfd,"READOVER",32,0)<0)
+					perror("send");
+			}
+
+			/* 如果接收空输入 */
+			if((strcmp(buffer->name,"")==0)||(strcmp(buffer->pwd,"")==0))
+			{
+				if(send(sockfd,"NULL",32,0)<0)
+					perror("send");
+				continue;
+			}
+			//判断数据
+			user = reviseUserNode(USERNAME,buffer->name,0);
+			if(user==NULL){
+				//告知用户未注册
+				if(send(sockfd,"name",32,0)<0)
+					perror("send");
+				continue;
+			}else if(strcmp(user->password,buffer->pwd)!=0){
+				//告知密码不一致
+				if(send(sockfd,"pwd",32,0)<0)
+					perror("send");
+				continue;
+			}else if(user->online_state==1){
+				printf("user->online_state=%d\n",user->online_state);
+				
+				printf("user->group_state=%d\n",user->group_state);
+				
+				printf("user->password=%s\n",user->password);
+				//告知已在其他设备登入
+				if(send(sockfd,"on_line",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				//告知成功
+				if(send(sockfd,"success",32,0)<0)
+					perror("send");
+				break;
+			}
+		}else if(strcmp(buf,"recv_error")==0){ /* 如果客户端退出 */
+			return;
+		}else{	/* 存失败 */
+			printf("[ \033[31mError\033[0m ] reactRegister():客户端中断登入\n");
+			return;
+		}
+	}
+	
+
+	/* 修改结构体状态 */
+	printf("set start\n");
+	strcpy(user->login_pid,myRecv(sockfd));
+	printf("user->login_pid=%s\n",user->login_pid);
+	strcpy(user->msg_key_text,myRecv(sockfd));
+	printf("user->msg_key_text=%s\n",user->msg_key_text);
+	strcpy(user->msg_id_text,myRecv(sockfd));
+	printf("user->msg_id_text=%s\n",user->msg_id_text);
+	DPRINTF("strcpy ovrt\n");
+
+	user->avail_flag = LEGAL;
+	user->sockfd = sockfd;
+	DPRINTF("int ovrt\n");
+
+	user->group_state=-1;
+	user->online_state=1;
+	user->login_t = time(NULL);
+	DPRINTF("set over\n");
+
+	/* 存档 */
+	writeFile(USER);
+	DPRINTF("write over\n");
+
+	if(send(sockfd,"log_success",32,0)<0)
+		perror("send");
+	DPRINTF("[ \033[34mInfo\033[0m ] 用户:%s登入成功\n",user->name);
+	if(send(sockfd,user->name,32,0)<0)
+		perror("send");	
+
+	
+	DPRINTF("cd reactUserMenu\n");
+	/* 创建消息处理子线程,参数为结构体指针 */
+	//pthread_create(&id,NULL,(void *)reactMsg,(void *)temp);
+	//reactUserMenu();
+	DPRINTF("exit reactUserMenu\n");
+	//退出登入后的状态清除
+	strcpy(user->login_pid,"");
+	strcpy(user->msg_id_text,"");
+	strcpy(user->msg_key_text,"");
+	
+	user->sockfd = -1;
+	user->group_state = -1;
+	user->online_state = -1;
+	user->login_t = 0;
+	
+	user->duration += (time(NULL)-user->login_t);
+	user->react_msg_id = -1;
+	
+	writeFile(USER);
+	DPRINTF("[ \033[34mInfo\033[0m ] 用户:%s已正常退出\n",user->name);
+	if(send(sockfd,"login_out_success",32,0)<0)
+		perror("send");	
 	return;
 }
 
@@ -244,7 +326,7 @@ void reactMainMenu(int *sockfd)
 		if(strcmp(buf,"1")==0){
 			reactRegister(*sockfd,inet_ip);
 		}else if(strcmp(buf,"2")==0){
-			reactLogin();
+			reactLogin(*sockfd,inet_ip);
 		}else if(strcmp(buf,"3")==0){
 			//reactSet();
 		}else if(strcmp(buf,"4")==0){
@@ -256,7 +338,7 @@ void reactMainMenu(int *sockfd)
 	        printf(" \033[33m已正常结束\033[0m\n");
 	        pthread_exit(0);
 		}else if(strcmp(buf,"ls")==0){
-			//listUser();
+			listLinklist();
 		}else if(strcmp(buf,"set")==0){
 			//设置状态
 			//reactSet(*sockfd);

@@ -77,8 +77,8 @@ struct User{
 	char msg_key_text[16]; /* 消息队列关键字:用于杀死调用同一消息队列的进程 [默认""] */
 	char telenumber[16]; /* 手机号 */
 
-	int avail_flag; /* 判断结构体是否有效 0:有效结构体 -1[ILLEGAL]:无效数据*/
 	int sockfd;	/* 登入后的socket号 [Default:-1] */
+	int avail_flag; /* 判断结构体是否有效 0:有效结构体 -1[ILLEGAL]:无效数据*/
 	int add_num; /* 验证消息数量 [Default:0]*/
 	int friend_num; /* 好友数量  [Default:0]*/
 	int unread_msg_num; /* 未读消息数量 [Default:0]*/
@@ -87,8 +87,8 @@ struct User{
 	char add_msg[32][128]; /* 验证消息具体内容 */
 	char unread_msg[128][128]; /* 未读消息 */
 	
-	bool group_state; /* 群聊状态 [Default:-1]*/
-	bool online_state; /* 在线状态 [Default:-1]*/
+	int group_state; /* 群聊状态 [Default:-1]*/
+	int online_state; /* 在线状态 [Default:-1] [在线:1]*/
 
 	float balance; /* 余额 */
 
@@ -96,7 +96,7 @@ struct User{
 	sem_t sem[64]; /* 信号量,同步处理接收到的消息 */
 	time_t login_t; /* 上线时间 */
 	time_t duration; /* 在线时长 */
-
+	pthread_t react_msg_id; /* 当前用户需要的消息处理线程的id用来直接下线前干死它 [-1]*/
 	struct Friend friends[32]; /* 好友结构体数组 */
 	
 };
@@ -148,6 +148,7 @@ int modUserNode(struct User);
 int delUserNode(int,char[],int);
 
 void initLink(void);
+void listLinklist(void);
 void addNode(int,struct User,struct Redp);
 
 struct User grepUserNode(int,char[],int);
