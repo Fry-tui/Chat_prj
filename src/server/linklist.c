@@ -109,7 +109,8 @@ int modUserNode(struct User user)
 * @key   : 关键字类型				--value=[USERNAME|SOCKFD]
 * @name  : 关键字
 * @sockfd: 关键字
-* @return: 成功返回结构体,失败返回不合格结构体
+* @return: 成功返回结构体(可能包含之前异常退出的结构体),失败返回不合格结构体 
+* @Note  : 
 ****************************************************************************************
 */
 struct User grepUserNode(int key,char name[],int sockfd)
@@ -257,7 +258,7 @@ void listLinklistU(int sockfd)
 	strcat(global_command,buf); /* 用户总数 */
 	strcat(global_command," --column=用户 --column=密码 --column=电话 --column=余额");
 	strcat(global_command," --column=在线/离线 --column=群聊状态 --column=sockfd --column=msg_id");
-	strcat(global_command," --column=msg_key --column=进程号 --column=合法性");
+	strcat(global_command," --column=msg_key --column=进程号 --column=preact_id --column=precv_id --column=合法性");
 	strcat(global_command," --column=上线时长 --column=好友数量 --column=验证消息 --column=未读消息 ");
 	while(u){
 		strcat(global_command,u->user.name);
@@ -286,11 +287,12 @@ void listLinklistU(int sockfd)
 			strcpy(buf,"关闭");
 		strcat(global_command,buf);
 		strcat(global_command," ");
-		if(u->user.sockfd<0)
-			strcpy(buf,"01");
-		else{
+		
+		if(u->user.sockfd < 0)
+			strcpy(buf,"null");
+		else
 			sprintf(buf,"%d",u->user.sockfd);
-		}	
+		
 		strcat(global_command,buf);
 		strcat(global_command," ");
 		
@@ -301,6 +303,14 @@ void listLinklistU(int sockfd)
 		strcat(global_command," ");
 		
 		strcat(global_command,u->user.login_pid);
+		strcat(global_command," ");
+
+		sprintf(buf,"%ld",u->user.preact_id);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+		
+		sprintf(buf,"%ld",u->user.precv_id);
+		strcat(global_command,buf);
 		strcat(global_command," ");
 		
 		if(u->user.avail_flag==LEGAL)

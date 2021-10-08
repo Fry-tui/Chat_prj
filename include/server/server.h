@@ -67,6 +67,7 @@ enum KEY_TYPE{
 enum BUF_TYPE{
 	REGFORMBUF,
 	LOGFORMBUF,
+	SETFORMBUF,
 };
 
 /* 

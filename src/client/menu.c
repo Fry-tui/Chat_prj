@@ -36,12 +36,13 @@ void mainMenu()
 	char *value[value_num];
 	Msg msg_send = {-1,"none"}; /* 用于存放需要通过消息队列传递的消息 */
 	
+	//打开显示屏
 	/* 为指针数组里的每个指针分配空间 */
 	for(i=0;i<value_num;i++){
 		value[i] = (char *)malloc(32);
 	}
 	/* 准备选项值 底*高+X+Y*/
-	strcpy(value[0],"46x20+10+10");
+	strcpy(value[0],"46x30+10+10");
 	strcpy(value[1],cur_ip_text);
 	//Step 1:打开显示屏,并尝试读取其进程号
 	createDisplay(msg_key_text,value_num,value);
@@ -99,3 +100,85 @@ void mainMenu()
 	return;
 }
 
+void userMenu(void)
+{
+	int res;
+	char buf[1024],send_buf[1024];
+	Msg msg_send = {-1,"none"}; /* 用于存放需要通过消息队列传递的消息 */
+	while(1){
+		//接收验证消息|未读消息拼接字符
+		if(recv(curSockfd,buf,1024,0)<0)
+			perror("recv");
+
+		//printf("Info:client/userMenu():recv msg_num:%s\n",buf);
+
+		msg_send.choice=IUSERMENU;	/* 显示用户菜单 */
+		strcpy(msg_send.text,buf);
+		myMsgSend(msg_send); /* 发送页面选项 */
+		
+		//printf("add|read=%s\n",msg_send.text);
+		
+		printf("%s","\033[1H\033[2J"); 
+		//等待选择
+		printf ("请选择："); 
+		scanf("%s",buf);
+		
+		strcpy(send_buf,"-");
+		strcat(send_buf,buf);
+
+		//将选项发送给线程
+		if(send(curSockfd,send_buf,1024,0)<0)
+			perror("send");
+		
+		//判断选项
+		if(strcmp(buf,"1")==0){
+			//listFriends();
+		}else if(strcmp(buf,"2")==0){
+			//priChat();
+		}else if(strcmp(buf,"3")==0){
+			//pubChat();
+		}else if(strcmp(buf,"4")==0){
+			//tranAccount();
+		}else if(strcmp(buf,"5")==0){	
+			//topUp();
+		}else if(strcmp(buf,"6")==0){
+			//sendRedp();
+		}else if(strcmp(buf,"7")==0){
+			//grabRedp();
+		}else if(strcmp(buf,"8")==0){
+			//addFriend();
+		}else if(strcmp(buf,"9")==0){
+			
+		}else if(strcmp(buf,"10")==0){
+			//inquireBalance();
+		}else if(strcmp(buf,"11")==0){
+			res = setPwd();
+			if(res == SUCCESS){
+				msg_send.choice=INULLMENU;
+				strcpy(msg_send.text,"[ \033[32mWarn\033[0m ] 修改成功即将自动登出账户");
+				myMsgSend(msg_send);
+				return;
+			}
+		}else if(strcmp(buf,"12")==0){
+			//delFriend();
+		}else if(strcmp(buf,"13")==0){
+			//groChat();
+		}else if(strcmp(buf,"14")==0){
+			//sendFile();
+		}else if(strcmp(buf,"15")==0){
+			//cancelUser(user);
+		}else if(strcmp(buf,"#")==0){
+			//listAddMsg();
+		}else if(strcmp(buf,"@")==0){
+			//listUnreadMsg();
+		}else if(strcmp(buf,"*")==0){
+			/* 不执行操作 */
+		}else if(strcmp(buf,"exit")==0){
+			return;
+		}else{
+			printf("\t输入有误,请重新输入\n"); 
+			sleep(1);
+		}
+	}
+	return;
+}

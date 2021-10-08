@@ -3,6 +3,9 @@
 
 #include "server.h"
 
+struct User * init_user_menureact;
+
 void reactMainMenu(int *);
+void reactUserMenu(struct User *user);
 
 #endif

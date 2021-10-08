@@ -4,5 +4,6 @@
 #include "client.h"
 
 void mainMenu(void);
+void userMenu(void);
 
 #endif

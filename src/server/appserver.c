@@ -116,10 +116,11 @@ void reactRegister(int sockfd,char inet_ip[])
 	strcpy(user.login_pid,"null");
 	strcpy(user.msg_id_text,"null");
 	strcpy(user.msg_key_text,"null");
+	strcpy(user.inet_ip_text,"null");
 	
 	//printf("strcpy ovrt\n");
 	user.avail_flag = LEGAL;
-	user.sockfd = sockfd;
+	user.sockfd = -1;
 	user.add_num = 0;
 	user.friend_num = 0;
 	user.unread_msg_num = 0;
@@ -138,10 +139,12 @@ void reactRegister(int sockfd,char inet_ip[])
 	user.balance = 0;
 	user.login_t = 0;
 	user.duration = 0;
-	for(i=0;i<64;i++){
+	for(i=0;i<32;i++){
 		sem_init(&user.sem[i],0,0);
+		strcpy(user.sem_buf[i],"");
 	}
-	user.msg_pid=-1;
+	user.precv_id = 0;
+	user.preact_id = 0;
 	//printf("set over\n");
 	//添加节点
 	addNode(USER,user,empty);
@@ -256,10 +259,12 @@ void reactLogin(int sockfd,char inet_ip[])
 	//printf("user->msg_key_text=%s\n",user->msg_key_text);
 	strcpy(user->msg_id_text,myRecv(sockfd));
 	//printf("user->msg_id_text=%s\n",user->msg_id_text);
+	strcpy(user->inet_ip_text,inet_ip);	
 	//DPRINTF("strcpy ovrt\n");
-
+	
 	user->avail_flag = LEGAL;
 	user->sockfd = sockfd;
+	user->preact_id = pthread_self();
 	//DPRINTF("int ovrt\n");
 
 	user->group_state=0;
@@ -277,26 +282,28 @@ void reactLogin(int sockfd,char inet_ip[])
 	if(send(sockfd,user->name,32,0)<0)
 		perror("send");	
 
-	
-	DPRINTF("cd reactUserMenu\n");
-	/* 创建消息处理子线程,参数为结构体指针 */
-	//pthread_create(&id,NULL,(void *)reactMsg,(void *)temp);
-	//reactUserMenu();
-	DPRINTF("exit reactUserMenu\n");
-	//退出登入后的状态清除
+	//进入用户菜单响应函数
+	reactUserMenu(user);
+
+	//退出用户菜单的响应
+	//DPRINTF("exit reactUserMenu->clean states\n");
+	/* 退出登入后的状态清除 */
 	strcpy(user->login_pid,"null");
 	strcpy(user->msg_id_text,"null");
 	strcpy(user->msg_key_text,"null");
+	strcpy(user->inet_ip_text,"null");	
 	
 	user->sockfd = -1;
-	user->group_state = -1;
-	user->online_state = -1;
+	user->group_state = 0;
+	user->online_state = 0;
 	user->login_t = 0;
 	
 	user->duration += (time(NULL)-user->login_t);
-	user->msg_pid = -1;
-	
+	user->precv_id = 0;
+	user->preact_id = 0;
+	//保存修改结果
 	writeFile(USER);
+	//提示结束并结束响应线程
 	DPRINTF("[ \033[34mInfo\033[0m ] 用户:%s已正常退出\n",user->name);
 	if(send(sockfd,"login_out_success",32,0)<0)
 		perror("send");	

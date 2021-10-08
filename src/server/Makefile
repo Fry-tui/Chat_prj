@@ -1,5 +1,5 @@
 CC = gcc
-OBJS = server.o fileops.o linklist.o msgops.o bufops.o menureact.o appserver.o ../common/command.o
+OBJS = server.o fileops.o linklist.o msgops.o bufops.o menureact.o appserver.o funserver.o ../common/command.o
 TARGET = ../../bin/server
 
 $(TARGET):$(OBJS)

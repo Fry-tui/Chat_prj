@@ -35,7 +35,7 @@ void clientRegister(void)
 	char buf[32],code[8],name[32],number[32],command[256];
 	
 	msg_send.choice=INULLMENU;
-	strcpy(msg_send.text,"%s\",\"\033[1H\033[2J");
+	strcpy(msg_send.text,"\033[1H\033[2J");
 	myMsgSend(msg_send);
 	strcpy(msg_send.text,"\t-----------Register-----------\n");
 	myMsgSend(msg_send);
@@ -198,7 +198,7 @@ void clientLogin(void)
 
 	/* 进行显示屏清空输出 */
 	msg_send.choice=INULLMENU;
-	strcpy(msg_send.text,"%s\",\"\033[1H\033[2J");
+	strcpy(msg_send.text,"\033[1H\033[2J");
 	myMsgSend(msg_send);
 	strcpy(msg_send.text,"\t-----------Login-----------\n");
 	myMsgSend(msg_send);
@@ -301,10 +301,10 @@ void clientLogin(void)
 	//等待登入结果
 	if(recv(curSockfd,buf,32,0)<0)
 		perror("recv");
-	//printf("buf = %s\n",buf);
+	if(recv(curSockfd,name,32,0)<0)
+		perror("recv");
+	//printf("buf = %s|name = %s\n",buf,name);
 	if(strcmp(buf,"log_success")==0){
-		if(recv(curSockfd,name,32,0)<0)
-			perror("recv");
 		strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户\033[36m");
 		strcat(msg_send.text,name);
 		strcat(msg_send.text,"\033[0m \033[32m登入成功\033[0m\n");
@@ -314,16 +314,18 @@ void clientLogin(void)
 		system("zenity --warning --text=\"登入失败\" --no-wrap --title=登入");
 		return;
 	}
-	DPRINTF("cd userMenu\n");
-	//userMenu();
-	DPRINTF("exit userMenu\n");
 	
+	//进入用户菜单
+	userMenu();
+	
+	//等待服务器用户菜单响应函数的结束.以及清除状态操作的结果
 	if(recv(curSockfd,buf,32,0)<0)
 		perror("recv");
 	if(strcmp(buf,"login_out_success")==0){
 		strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户\033[36m");
 		strcat(msg_send.text,name);
 		strcat(msg_send.text,"\033[0m \033[32m即将退出登入\033[0m\n");
+		system("zenity --info --text=\"退出登入\" --no-wrap --title=登出");
 		myMsgSend(msg_send);
 		sleep(1);
 	}

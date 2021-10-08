@@ -66,3 +66,95 @@ void reactMainMenu(int *sockfd)
 	return;
 }
 
+/*
+****************************************************************************************
+*                                  主菜单响应函数
+* @Desc  : 响应用户菜单函数|进入这个函数开始所有的服务器接收都使用封装好的接收线程
+* @*user : 指向具体用户的节点,可以通过这个结构体指针直接修改链表里节点的数据
+* @Note	 : 
+* @return: 无返回值
+****************************************************************************************
+*/
+void reactUserMenu(struct User *user)
+{
+	int res;
+	char buf[1024];
+	char add_num[8],unread_msg_num[8];
+	pthread_t id;
+	
+	//Step 1:创建接收线程,退出时销毁
+	pthread_create(&id,NULL,(void *)pthread_Recv,(void *)user);
+	user->preact_id = id;
+	writeFile(USER);
+	/* @[Warn]:之前这里做了一个信号量的清楚操作,目前暂时用不到 */
+	
+	while(1){
+		/* 封装 验证消息|未读消息 拼接字符 并发送 */
+		sprintf(add_num,"%d",user->add_num);
+		sprintf(unread_msg_num,"%d",user->unread_msg_num);
+		strcpy(buf,add_num);
+		strcat(buf,"|");
+		strcat(buf,unread_msg_num);
+		strcat(buf,"\0");
+		if(send(user->sockfd,buf,1024,0)<0)
+			perror("send");
+		//printf("add|read=%s\n",buf);
+		
+		//获取线程接收到的普通数据
+		sem_wait(&user->sem[0]);
+		strcpy(buf,user->sem_buf[0]);
+		
+		//判断选项
+		if(strcmp(buf,"1")==0){
+			//listFriends();
+		}else if(strcmp(buf,"2")==0){
+			//priChat();
+		}else if(strcmp(buf,"3")==0){
+			//pubChat();
+		}else if(strcmp(buf,"4")==0){
+			//tranAccount();
+		}else if(strcmp(buf,"5")==0){	
+			//topUp();
+		}else if(strcmp(buf,"6")==0){
+			//sendRedp();
+		}else if(strcmp(buf,"7")==0){
+			//grabRedp();
+		}else if(strcmp(buf,"8")==0){
+			//addFriend();
+		}else if(strcmp(buf,"9")==0){
+			
+		}else if(strcmp(buf,"10")==0){
+			//inquireBalance();
+		}else if(strcmp(buf,"11")==0){
+			res = setPwd(user);
+			if(res==SUCCESS){
+				DPRINTF("[ \033[34mInfo\033[0m ] 用户:%s修改密码成功,自动登出就绪\n",user->name);
+				pthread_cancel(user->preact_id);
+				return;
+			}
+		}else if(strcmp(buf,"12")==0){
+			//delFriend();
+		}else if(strcmp(buf,"13")==0){
+			//groChat();
+		}else if(strcmp(buf,"14")==0){
+			//sendFile();
+		}else if(strcmp(buf,"15")==0){
+			//cancelUser(user);
+		}else if(strcmp(buf,"#")==0){
+			//listAddMsg();
+		}else if(strcmp(buf,"@")==0){
+			//listUnreadMsg();
+		}else if(strcmp(buf,"*")==0){
+			/* 不执行操作 */
+		}else if(strcmp(buf,"exit")==0){
+			pthread_cancel(user->preact_id);
+			return;
+		}else{
+			printf("[ \033[32mWarn\033[0m ] menureact.c reactUserMenu():无法识别:%s\n",buf);
+			sleep(1);
+		}
+		//inspectRedp();	/* 检测红包效期函数 */
+	}
+	return;
+}
+

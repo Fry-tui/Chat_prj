@@ -29,6 +29,17 @@
 #define DPRINTF(...)
 #endif
 
+/************************************
+ *      		DEFINE				*
+ ************************************/
+#define SUCCESS 1
+#define FAILD 0
+#define VALID 1
+#define INVALID 0
+#define LEGAL 0
+#define ILLEGAL -1
+#define LENILLEGAL 1
+
 /*************************************
  *         GLOBAL PROTOTYPES		 *
  ************************************/
