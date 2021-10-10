@@ -5,5 +5,6 @@
 
 void mainMenu(void);
 void userMenu(void);
+void rootMenu(void);
 
 #endif
