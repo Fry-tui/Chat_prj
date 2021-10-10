@@ -34,7 +34,7 @@ void mainMenu()
 	char buf[1024]; 
 	int value_num=2;
 	char *value[value_num];
-	Msg msg_send = {-1,"none"}; /* 用于存放需要通过消息队列传递的消息 */
+	Msg msg_send = {1,"none"}; /* 用于存放需要通过消息队列传递的消息 */
 	
 	//打开显示屏
 	/* 为指针数组里的每个指针分配空间 */
@@ -48,7 +48,7 @@ void mainMenu()
 	createDisplay(msg_key_text,value_num,value);
 	//Step 2:打开|创建消息队列			执行成功则返回消息队列的标识符(非负整数)，否则返回-1
 	msg_id = msgget(msg_key,0777|IPC_CREAT); /*msg_key:消息队列关联的键值 IPC_CREAT没有就创建及存取权限 */
-	if(msg_key == -1){
+	if(msg_id == -1){
 		perror("[ \033[31mError\033[0m ] client/menu.c mainMenu(): msgget");
 		killDisplay(msg_key_text);			/* 1:关闭对应的display进程(执行者:client) */
 								/* 2:关闭socket号(执行者:server/reactMainMenu()/myRecv()) */
@@ -103,13 +103,19 @@ void mainMenu()
 void userMenu(void)
 {
 	int res;
+	pthread_t id;
 	char buf[1024],send_buf[1024];
-	Msg msg_send = {-1,"none"}; /* 用于存放需要通过消息队列传递的消息 */
-	while(1){
-		//接收验证消息|未读消息拼接字符
-		if(recv(curSockfd,buf,1024,0)<0)
-			perror("recv");
+	Msg msg_send = {1,"none"}; /* 用于存放需要通过消息队列传递的消息 */
 
+	//printf("UserMenu:CD UserMenu\n");
+	pthread_create(&id,NULL,(void *)pthread_Recv,NULL);
+	//printf("UserMenu:Create pthread\n");
+
+	while(1){
+		//printf("Wait sem such as: 0|5\n");
+		//接收验证消息|未读消息拼接字符
+		sem_wait(&global_sem);
+		strcpy(buf,global_sem_buf);
 		//printf("Info:client/userMenu():recv msg_num:%s\n",buf);
 
 		msg_send.choice=IUSERMENU;	/* 显示用户菜单 */
@@ -146,7 +152,7 @@ void userMenu(void)
 		}else if(strcmp(buf,"7")==0){
 			//grabRedp();
 		}else if(strcmp(buf,"8")==0){
-			//addFriend();
+			addFriend();
 		}else if(strcmp(buf,"9")==0){
 			
 		}else if(strcmp(buf,"10")==0){
@@ -157,7 +163,7 @@ void userMenu(void)
 				msg_send.choice=INULLMENU;
 				strcpy(msg_send.text,"[ \033[32mWarn\033[0m ] 修改成功即将自动登出账户");
 				myMsgSend(msg_send);
-				return;
+				break;
 			}
 		}else if(strcmp(buf,"12")==0){
 			//delFriend();
@@ -168,11 +174,62 @@ void userMenu(void)
 		}else if(strcmp(buf,"15")==0){
 			//cancelUser(user);
 		}else if(strcmp(buf,"#")==0){
-			//listAddMsg();
+			listAddMsg();
+			disposeAddMsg();
 		}else if(strcmp(buf,"@")==0){
 			//listUnreadMsg();
 		}else if(strcmp(buf,"*")==0){
-			/* 不执行操作 */
+			system("zenity --info --text=刷新成功 --no-wrap --title=Refresh");
+		}else if(strcmp(buf,"exit")==0){
+			break;
+		}else{
+			printf("\t输入有误,请重新输入\n"); 
+			sleep(1);
+		}
+	}
+
+	//关闭接收线程
+	pthread_cancel(id);
+	return;
+}
+
+void rootMenu(void)
+{
+	int res;
+	char buf[1024],send_buf[1024];
+	Msg msg_send = {1,"none"}; /* 用于存放需要通过消息队列传递的消息 */
+
+	while(1){
+		msg_send.choice=IROOTMENU;	/* 显示管理员菜单 */
+		myMsgSend(msg_send); /* 发送页面选项 */
+		
+		printf("%s","\033[1H\033[2J"); 
+		//等待选择
+		printf ("请选择："); 
+		scanf("%s",buf);
+
+		//将选项发送给线程
+		if(send(curSockfd,buf,1024,0)<0)
+			perror("send");
+		
+		//判断选项
+		if(strcmp(buf,"1")==0){
+			//rmUser();
+		}else if(strcmp(buf,"2")==0){
+			offLineUser();
+		}else if(strcmp(buf,"3")==0){
+			//等待结果
+			if(recv(curSockfd,buf,1024,0)<0)
+				perror("recv");
+			if(strcmp(buf,"LIST_SUCCESS")==0){
+				DPRINTF("罗列完毕(%s)\n",buf);
+			}else{
+				DPRINTF("罗列失败(%s)\n",buf);
+			}
+		}else if(strcmp(buf,"4")==0){
+			//bcAnnouncement();
+		}else if(strcmp(buf,"5")==0){
+			closeServer();
 		}else if(strcmp(buf,"exit")==0){
 			return;
 		}else{
