@@ -138,7 +138,7 @@ void userMenu(void)
 		
 		//判断选项
 		if(strcmp(buf,"1")==0){
-			//listFriends();
+			listFriends();
 		}else if(strcmp(buf,"2")==0){
 			//priChat();
 		}else if(strcmp(buf,"3")==0){

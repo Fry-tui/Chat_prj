@@ -32,6 +32,7 @@ struct Buffer{
 	char name[32];
 	char pwd[32];
 	char psd[32]; 
+	char text[32];
 };
 
 /**

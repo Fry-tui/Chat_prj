@@ -1,3 +1,5 @@
+#include <time.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,13 +17,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-struct User{
-	int i;
-};
-
 int main()
 {
-	struct User user;
-	printf("user=%d\n",user.i);
+	int detime=100000000;
+	while(detime--);
+	//sleep(1);
 	return 0;
 }	

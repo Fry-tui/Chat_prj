@@ -114,10 +114,13 @@ char *myRecv(int sockfd)
 */
 void pthread_Recv(struct User *user)
 {
-	int i;
+	int i=0,j=0;	/* 主要用于字符索引 */
+	int index;	/* 主要用于索引 */
 	int len;
 	int sockfd;
-	char buf[1024],msg[1024];
+	char buf[1024],msg[1024],name[1024];
+	char send_text[1024];
+	struct User * fuser = NULL;
 	pthread_t preact_id;
 	
 	pthread_detach(pthread_self());	/*修改线程资源等级,意外结束时自动释放资源*/
@@ -210,6 +213,110 @@ void pthread_Recv(struct User *user)
 		if(buf[0]=='-'){		/* sem[0]:当前客户端发来的普通消息 */
 			strcpy(user->sem_buf[0],msg);
 			sem_post(&user->sem[0]);
+		}else if(buf[0]=='a'){		/* sem[无需sem]:当前客户端处理完添*加后的结果(弹窗操作结果) */
+			/* 实例 msg = 0|许玉泉  		操作结果|请求对象 */
+			printf("msg = %s\n",msg);
+			i=0;
+			while(msg[i]!='|')
+				buf[i] = msg[i++];
+			buf[i++]='\0'; /* 取得的是操作结果 res [0|256] */
+			printf("buf = %s\n",buf);
+			j=0;
+			while(msg[i]!='\0')
+				name[j++] = msg[i++];
+			name[j] = '\0';
+			printf("name = %s\n",name);
+
+			fuser = reviseUserNode(USERNAME, name, 0); /* 根据用户名获取用户节点 */
+			if(fuser==NULL){
+				/* 用户注销了 */
+				//发送弹窗类消息  		   示例："!out|用户:许玉泉已注销,无法加为好友!"
+				strcpy(send_text,"!out|用户:");
+				strcat(send_text,name);
+				strcat(send_text,"已注销,无法加为好友!");
+				if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送验证消息 */
+					perror("send");
+				continue;
+			}
+			/* 有没有可能同意添加的时候已经是好友了 */
+			for(index=0;index<user->friend_num;i++){
+				if(strcmp(user->friends[index].puser->name,name)==0)
+					break;
+			}
+			//如果已是好友 index<user->friend_num
+			if(strcmp(buf,"0")==0){
+				/* 同意添加 */
+				//判断是不是已是好友
+				
+				if(index < user->friend_num){
+					/* 是好友 */
+					strcpy(send_text,"!out|用户:");
+					strcat(send_text,name);
+					strcat(send_text,"已经是你好友了,快去聊天吧!");
+					if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送消息 */
+						perror("send");
+					break;
+				}
+				
+				fuser->friends[fuser->friend_num].puser = user;
+				fuser->friend_num++;
+				user->friends[user->friend_num].puser = fuser;
+				user->friend_num++;
+				//弹窗类消息	    
+				if(fuser->online_state==1){
+					//"!out|用户:田恩竹已通过好友验证,快来聊天吧!"
+					strcpy(send_text,"!out|用户:");
+					strcat(send_text,user->name);
+					strcat(send_text,"已通过好友验证,快来聊天吧!");
+					if(send(fuser->sockfd,send_text,1024,0)<0) /* 给对方发送消息 */
+						perror("send");
+				}else{
+					//存入结构体验证消息
+					/* 不在线添加消息到对方用户fuser的结构体 */
+					strcpy(fuser->add_name[fuser->add_num],user->name);
+					strcpy(fuser->add_msg[fuser->add_num],"-已通过好友验证,快来聊天吧!");
+					fuser->add_num++;
+				}
+
+				strcpy(send_text,"!out|添加成功!");
+				if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送验证消息 */
+					perror("send");
+			}else{
+				/* 拒绝添加 */
+			
+				if(index < user->friend_num){
+					/* 是好友 */
+					strcpy(send_text,"!out|用户:");
+					strcat(send_text,name);
+					strcat(send_text,"已经是你好友了,无法拒绝哦!");
+					if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送消息 */
+						perror("send");
+					break;
+				}
+				
+				//弹窗类消息	    
+				if(fuser->online_state==1){
+					//"!out|用户:田恩竹已通过好友验证,快来聊天吧!"
+					strcpy(send_text,"!out|用户:");
+					strcat(send_text,user->name);
+					strcat(send_text,"已拒绝进入你的鱼塘!");
+					if(send(fuser->sockfd,send_text,1024,0)<0) /* 给对方发送消息 */
+						perror("send");
+				}else{
+					//存入结构体验证消息
+					/* 不在线添加消息到对方用户fuser的结构体 */
+					strcpy(fuser->add_name[fuser->add_num],user->name);
+					strcpy(fuser->add_msg[fuser->add_num],"-已拒绝进入你的鱼塘!");
+					fuser->add_num++;
+				}
+				strcpy(send_text,"!out|驳回成功!");
+				if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送验证消息 */
+					perror("send");
+			}
+			fuser = NULL;
+			writeFile(USERNAME);
+			//strcpy(user->sem_buf[1],msg);
+			//sem_post(&user->sem[1]);
 		}else{
 			printf("[ \033[32mWarn\033[0m ] pthread_Recv(): 数据:%s 无法识别\n",buf);
 		}

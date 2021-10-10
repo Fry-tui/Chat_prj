@@ -14,7 +14,7 @@ typedef struct Msg{
 
 //枚举页面choice
 enum KEY_TYPE{
-	INULLMENU,
+	INULLMENU=2,
 	IMAINMENU,
 	IUSERMENU,
 	IROOTMENU,

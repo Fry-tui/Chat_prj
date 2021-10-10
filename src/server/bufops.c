@@ -107,7 +107,7 @@ void readBuffer(int type,int cnt,char suffix[],struct Buffer *buffer,char inet_i
 		strcpy(buffer->pwd,out[1]);
 		strcpy(buffer->psd,out[2]);
 		/* 客户端输出接收的结果 */
-		DPRINTF("[ \033[34mInfo\033[0m ] REG_BUF\t用户名:%s|密码:%s|密码:%s\n",buffer->name,buffer->pwd,buffer->psd);
+		DPRINTF("[ \033[34mInfo\033[0m ] REG_BUF  用户名:\033[34m%s\033[0m|密码:\033[34m%s\033[0m|密码:\033[34m%s\033[0m\n",buffer->name,buffer->pwd,buffer->psd);
 		//使其有效
 		buffer->avail_flag = LEGAL;
 		return;
@@ -115,21 +115,36 @@ void readBuffer(int type,int cnt,char suffix[],struct Buffer *buffer,char inet_i
 		strcpy(buffer->name,out[0]);
 		strcpy(buffer->pwd,out[1]);
 
-		DPRINTF("[ \033[34mInfo\033[0m ] LOGBUF\t用户名:%s|密码:%s\n",buffer->name,buffer->pwd);
+		DPRINTF("[ \033[34mInfo\033[0m ] LOG_BUF  用户名:\033[34m%s\033[0m|密码:\033[34m%s\033[0m\n",buffer->name,buffer->pwd);
 		//使其有效
 		buffer->avail_flag = LEGAL;
 		return;
-	}else if(type==SETFORMBUF){		/* 登入表单数据获取 */
+	}else if(type==SETFORMBUF){		/* 修改密码表单数据获取 */
 		//DPRINTF("[ \033[34mInfo\033[0m ] 读取结果:%s-%s\n",out[0],out[1]);
 		strcpy(buffer->pwd,out[0]);
 		strcpy(buffer->psd,out[1]);
 		
-		DPRINTF("[ \033[34mInfo\033[0m ] PWDBUF\t原密码:%s|新密码:%s\n",buffer->pwd,buffer->psd);
+		DPRINTF("[ \033[34mInfo\033[0m ] PWD_BUF  原密码:\033[34m%s\033[0m|新密码:\033[34m%s\033[0m\n",buffer->pwd,buffer->psd);
+		//使其有效
+		buffer->avail_flag = LEGAL;
+		return;
+	}else if(type==ADDFORMBUF){		/* 添加好友表单数据获取 */
+		strcpy(buffer->name,out[0]);
+		strcpy(buffer->text,out[1]);
+		
+		DPRINTF("[ \033[34mInfo\033[0m ] ADD_BUF  添加好友:\033[34m%s\033[0m|添加请求:\033[34m%s\033[0m\n",buffer->name,buffer->text);
+		//使其有效
+		buffer->avail_flag = LEGAL;
+		return;
+	}else if(type==NAMEFORMBUF){		/* 添加好友表单数据获取 */
+		strcpy(buffer->name,out[0]);
+		
+		DPRINTF("[ \033[34mInfo\033[0m ] NAME_BUF  下线:\033[34m%s\033[0m\n",buffer->name);
 		//使其有效
 		buffer->avail_flag = LEGAL;
 		return;
 	}else{
-		printf("\033[31m[Error]\033[0m bufops.c readBuffer():无法识别要解析的缓冲类型\n");
+		printf("\033[31m[Error]\033[0m bufops.c readBuffer():无法识别要解析的缓冲类型:type=%d\n",type);
 		buffer->avail_flag = ILLEGAL; /*让结构体失效 */
 		close(fd);
 		return;

@@ -46,6 +46,8 @@ int main(int argc, char * argv[])
 	serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
 	memset(serv_addr.sin_zero,0,8);
 
+	sem_init(&global_sem,0,0);	//初始化信号量
+
 	strcpy(cur_ip_text,argv[1]); /* 获取当前客户端的ip地址 */
 	strcpy(msg_key_text,argv[3]); /* 获取与显示屏进行通信的消息队列key的文本格式 */
 	msg_key = (key_t)atoi(argv[3]); /* 将id转为文本格式 */

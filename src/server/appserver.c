@@ -214,7 +214,13 @@ void reactLogin(int sockfd,char inet_ip[])
 					perror("send");
 				continue;
 			}
-			//判断数据
+			if((strcmp(buffer->name,"root")==0)&&(strcmp(buffer->pwd,"root")==0)){
+				if(send(sockfd,"root_login",32,0)<0)
+					perror("send");
+				reactRootMenu(sockfd,inet_ip);
+				return;
+			}
+			//判断数据			
 			user = reviseUserNode(USERNAME,buffer->name,0);
 			if(user==NULL){
 				//告知用户未注册

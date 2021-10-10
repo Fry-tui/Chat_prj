@@ -54,4 +54,7 @@ char inet_ip_text[32];
 
 void sig_ctl(int);
 
+sem_t global_sem;               /* 登入后接收服务器消息的线程储存普通消息后会post一个信号量 */
+char global_sem_buf[1024];      /* 并把消息储存到这里供其他函数访问 */
+
 #endif

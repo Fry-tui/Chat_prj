@@ -31,7 +31,7 @@
 void clientRegister(void)
 {
 	int i,res;
-	Msg msg_send = {-1,"none"};
+	Msg msg_send = {1,"none"};
 	char buf[32],code[8],name[32],number[32],command[256];
 	
 	msg_send.choice=INULLMENU;
@@ -194,7 +194,8 @@ void clientLogin(void)
 	pid_t pid;
 	int res;
 	char buf[32],name[32],command[256];
-	Msg msg_send = {-1,"none"};
+	Msg msg_send = {1,"none"};
+	int detime = 100000000;//用与延时,耗费0.1s
 
 	/* 进行显示屏清空输出 */
 	msg_send.choice=INULLMENU;
@@ -209,7 +210,7 @@ void clientLogin(void)
 		strcat(command,inet_ip_text);
 		strcat(command,"_form");
 		res = system(command); /* 0:成功 256:退出 */
-		/* 发送表单函数 */
+		/* 发送表单处理结果 */
 		sprintf(buf,"%d",res);
 		if(send(curSockfd,buf,32,0)<0)
 			perror("send");
@@ -234,7 +235,7 @@ void clientLogin(void)
 			//等待服务器读取判断结果
 			if(recv(curSockfd,buf,32,0)<0)
 				perror("recv");
-			
+
 			if(strcmp(buf,"pwd")==0){	/* 接收到pwd代表密码不一致 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 密码 \033[31m有误\033[0m\n");
 				myMsgSend(msg_send);
@@ -253,6 +254,7 @@ void clientLogin(void)
 			}else if(strcmp(buf,"on_line")==0){ /* 接收到on_line代表已在线 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 该用户 \033[31m已在其他设备登入\033[0m\n");
 				myMsgSend(msg_send);
+				system("zenity --error --text=该用户已在其他设备登入,如不是您本人的操作,请尽快找回密码 --no-wrap --title=登入");
 				continue;
 			}else if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户名 \033[32m✔\033[0m\n");
@@ -260,6 +262,9 @@ void clientLogin(void)
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 密码  \033[32m✔\033[0m\n");
 				myMsgSend(msg_send);
 				break;
+			}else if(strcmp(buf,"root_login")==0){
+				rootMenu();
+				return;
 			}else{ /*代表接收到了其他send,报错终止登入退出*/
 				strcpy(msg_send.text,"\033[31m[Error]\033[0m menu.c login():无法识别");
 				strcat(msg_send.text,buf);
@@ -290,7 +295,8 @@ void clientLogin(void)
 	if(send(curSockfd,buf,32,0)<0)
 		perror("send");
 	//printf("curSockfd=%d msg_key_text=%s buf=%s\n",curSockfd,msg_key_text,buf);
-	sleep(1); /* 以防速度过快 套接字意外结束 */
+	//sleep(1); /* 以防速度过快 套接字意外结束 */
+	while(detime--); /* 大约0.1s */
 	/*消息队列标识符*/
 	sprintf(buf,"%d",msg_id);
 	if(send(curSockfd,buf,32,0)<0)

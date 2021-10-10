@@ -68,8 +68,9 @@ enum BUF_TYPE{
 	REGFORMBUF,
 	LOGFORMBUF,
 	SETFORMBUF,
+	ADDFORMBUF,
+	NAMEFORMBUF,
 };
-
 /* 
 	存放供system执行的指令,
 	由于局部变量的大小有限制,

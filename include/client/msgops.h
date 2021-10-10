@@ -14,12 +14,13 @@ typedef struct Msg{
 
 //枚举页面choice
 enum KEY_TYPE{
-	INULLMENU, /* 不显示任何页面存打印发送文本 */
+	INULLMENU=2, /* 不显示任何页面存打印发送文本 */
 	IMAINMENU, /* 显示主菜单 */
 	IUSERMENU, /* 显示用户菜单 */
 	IROOTMENU, /* 显示管理员菜单 */
 };
 
 void myMsgSend(Msg);
-
+void zenityOps(char[]);
+void pthread_Recv(void);
 #endif

@@ -28,7 +28,7 @@
 */
 int main(int argc,char *argv[])
 {
-	Msg recv_msg = {-1,"none"}; /* 接收客户端传递过来的参数 */
+	Msg recv_msg = {1,"none"}; /* 接收客户端传递过来的参数 */
 	key_t msg_key = (key_t)atoi(argv[1]);	/* 获取消息队列的key值 */
 	//打开|创建消息队列
 	msg_id = msgget(msg_key,0777|IPC_CREAT); /*msg_key:消息队列关联的键值 IPC_CREAT没有就创建及存取权限 */
@@ -54,9 +54,6 @@ int main(int argc,char *argv[])
 			printf("%s","\033[1H\033[2J");
 		}
 	}
-	//循环等待
-	displayRootMenu();
-	while(1);
 	return 0;
 }
 
@@ -126,9 +123,10 @@ void displayRootMenu(void)
 	printf ("\t--------------\33[34m理\33[0m-------------\n");
 	printf ("\t|\t1删除指定用户\t    |\n");
 	printf ("\t|\t2下线指定用户\t    |\n");
-	printf ("\t|\t3罗列在线用户\t    |\n");
-	printf ("\t|\t4罗列离线用户\t    |\n");
-	printf ("\t|\t5广播发送公告\t    |\n");
+	printf ("\t|\t3罗列所有用户\t    |\n");
+	printf ("\t|\t4广播发送公告\t    |\n");
+	printf ("\t|\t5远程关闭服务器\t    |\n");
+	printf ("\t|\texit:退出管理\t    |\n");
 	printf ("\t----------\33[34m页\33[0m-----------------\n");
 	printf ("\t--------------\33[34m面\33[0m-------------\n");
 	return;

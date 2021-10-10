@@ -24,11 +24,7 @@
 ****************************************************************************************
 *                                  修改密码
 * @Desc  : 修改用户密码
-<<<<<<< HEAD
 * @return: 无返回值
-=======
-* @return: 放回操作结果
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 ****************************************************************************************
 */
 int setPwd(struct User *user)
@@ -41,7 +37,6 @@ int setPwd(struct User *user)
 	buffer = (struct Buffer *)malloc(sizeof(struct Buffer));
 	
 	while(1){
-<<<<<<< HEAD
 		//DPRINTF("[ \033[34mInfo\033[0m ] 等待表单执行结果\n");
 		sem_wait(&user->sem[0]);
 		//DPRINTF("[ \033[34mInfo\033[0m ] 已读取,准备接收数据\n");
@@ -54,79 +49,41 @@ int setPwd(struct User *user)
 			if(buffer->avail_flag==ILLEGAL){
 				//发送不合法
 				if(send(sockfd,"-ILLEGAL",32,0)<0)
-=======
-		DPRINTF("[ \033[34mInfo\033[0m ] 等待表单执行结果\n");
-		sem_wait(&user->sem[0]);
-		DPRINTF("[ \033[34mInfo\033[0m ] 已读取,准备接收数据\n");
-		strcpy(buf,user->sem_buf[0]);
-		DPRINTF("[ \033[34mInfo\033[0m ] 执行结果:%s|读取缓冲就绪\n",buf);
-		if(strcmp(buf,"0")==0){	/* 存入buffer成功 */
-			//读表单数据函数
-			readBuffer(SETFORMBUF,2,"_form",(void *)buffer,user->inet_ip_text);
-			DPRINTF("[ \033[34mInfo\033[0m ] 读表单数据完成\n");
-			if(buffer->avail_flag==ILLEGAL){
-				//发送不合法
-				if(send(sockfd,"ILLEGAL",32,0)<0)
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 					perror("send");
 				return;
 			}else if(buffer->avail_flag==LENILLEGAL){
 				//发送长度不合法
-<<<<<<< HEAD
 				if(send(sockfd,"-LENILLEGAL",32,0)<0)
-=======
-				if(send(sockfd,"LENILLEGAL",32,0)<0)
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 					perror("send");
 				continue;
 			}else{
 				//发送读到了
-<<<<<<< HEAD
 				if(send(sockfd,"-READOVER",32,0)<0)
-=======
-				if(send(sockfd,"READOVER",32,0)<0)
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 					perror("send");
 			}
 
 			/* 如果接收空输入 */
 			if((strcmp(buffer->pwd,"")==0)||(strcmp(buffer->pwd,"")==0))
 			{
-<<<<<<< HEAD
 				if(send(sockfd,"-NULL",32,0)<0)
-=======
-				if(send(sockfd,"NULL",32,0)<0)
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 					perror("send");
 				continue;
 			}
 			//判断数据 
 			if(strcmp(buffer->pwd,user->password)!=0){
 				//告知旧密码
-<<<<<<< HEAD
 				if(send(sockfd,"-old_error",32,0)<0)
-=======
-				if(send(sockfd,"old_error",32,0)<0)
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 					perror("send");
 				continue;
 			}else if(strcmp(buffer->psd,buffer->pwd)==0){
 				//告知新旧密码一致
-<<<<<<< HEAD
 				if(send(sockfd,"-same",32,0)<0)
-=======
-				if(send(sockfd,"same",32,0)<0)
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 					perror("send");
 				continue;
 			}else{
 				//告知成功
 				strcpy(user->password,buffer->psd);
-<<<<<<< HEAD
 				if(send(sockfd,"-success",32,0)<0)
-=======
-				if(send(sockfd,"success",32,0)<0)
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 					perror("send");
 				break;
 			}
@@ -141,7 +98,6 @@ int setPwd(struct User *user)
 	return SUCCESS;
 }
 
-<<<<<<< HEAD
 /*
 ****************************************************************************************
 *                                  响应添加好友
@@ -580,5 +536,3 @@ void closeServer(int sockfd)
 	return;
 }
 
-=======
->>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
