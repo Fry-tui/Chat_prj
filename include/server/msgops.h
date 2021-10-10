@@ -6,6 +6,9 @@
  ************************************/
 #include "server.h"
 
+struct User *init_user_msgops;
+
 char *myRecv(int);
+void pthread_Recv(struct User *user);
 
 #endif

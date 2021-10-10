@@ -38,6 +38,8 @@
 			所以本项目不做特殊处理。
 			
 			特殊处理:对于分隔符分开的每个数据最多可以有32位超过则提示消息过长
+
+			参数buffer传参前一定要malloc
 * @return: 无返回值,但是结构体指针buffer指向的地址的值发生变化,达到传参回去的效果
 ****************************************************************************************
 */
@@ -58,8 +60,8 @@ void readBuffer(int type,int cnt,char suffix[],struct Buffer *buffer,char inet_i
 	strcat(src,suffix);
 	
 	fd = open(src, O_RDONLY);	/* 只读打开,获取文件描述符 */
+	//DPRINTF("[ \033[34mInfo\033[0m ] 缓冲路径:%s|读取结果:%d\n",src,fd);
 	
-	//printf("src=%s\n",src);
 	/* @[Warn]:其实判断长度过长也还是有bug如果输入|抑或是用户名110位后面都合格也会通过 */
 	/* 解决了一半,一旦数据读了两次,直接退出,言下之意总数据超过96个 */
 	if(fd!=-1){					/* 判断打开成功与否 */
@@ -98,14 +100,14 @@ void readBuffer(int type,int cnt,char suffix[],struct Buffer *buffer,char inet_i
 		out[i][k]='\0'; /* importaance:必须给每行介素符,不然会报错 */
 		j++; /* 跳过buf里的分割符,准备下一次分割 */
 	}
-
+	
 	if(type == REGFORMBUF){		/* 注册表单数据获取 */
 		/* 获取名字,一密,二密 */
 		strcpy(buffer->name,out[0]);
 		strcpy(buffer->pwd,out[1]);
 		strcpy(buffer->psd,out[2]);
 		/* 客户端输出接收的结果 */
-		DPRINTF("[ \033[34mInfo\033[0m ] REG_BUF:用户名:%s|密码:%s|密码:%s\n",buffer->name,buffer->pwd,buffer->psd);
+		DPRINTF("[ \033[34mInfo\033[0m ] REG_BUF\t用户名:%s|密码:%s|密码:%s\n",buffer->name,buffer->pwd,buffer->psd);
 		//使其有效
 		buffer->avail_flag = LEGAL;
 		return;
@@ -113,7 +115,16 @@ void readBuffer(int type,int cnt,char suffix[],struct Buffer *buffer,char inet_i
 		strcpy(buffer->name,out[0]);
 		strcpy(buffer->pwd,out[1]);
 
-		DPRINTF("[ \033[34mInfo\033[0m ] LOGBUF:用户名:%s|密码:%s\n",buffer->name,buffer->pwd);
+		DPRINTF("[ \033[34mInfo\033[0m ] LOGBUF\t用户名:%s|密码:%s\n",buffer->name,buffer->pwd);
+		//使其有效
+		buffer->avail_flag = LEGAL;
+		return;
+	}else if(type==SETFORMBUF){		/* 登入表单数据获取 */
+		//DPRINTF("[ \033[34mInfo\033[0m ] 读取结果:%s-%s\n",out[0],out[1]);
+		strcpy(buffer->pwd,out[0]);
+		strcpy(buffer->psd,out[1]);
+		
+		DPRINTF("[ \033[34mInfo\033[0m ] PWDBUF\t原密码:%s|新密码:%s\n",buffer->pwd,buffer->psd);
 		//使其有效
 		buffer->avail_flag = LEGAL;
 		return;

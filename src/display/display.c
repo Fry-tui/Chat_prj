@@ -43,13 +43,14 @@ int main(int argc,char *argv[])
 		if(recv_msg.choice==IMAINMENU){
 			displayMainMenu();
 		}else if(recv_msg.choice==IUSERMENU){
-			displayUserMenu(2,2);
+			//分隔消息:recv_msg.text;"add_num|unread_msg_num" -> 直接交给该函数自己完成
+			displayUserMenu(recv_msg.text); 
 		}else if(recv_msg.choice==IROOTMENU){
 			displayRootMenu();
 		}else if(recv_msg.choice==INULLMENU){
 			printf("%s",recv_msg.text);
 		}else{
-			DPRINTF("[ \033[31mError\033[0m ] display.c/main() :recv_msg.choice:%d 无法识别\n",recv_msg.choice);
+			printf("[ \033[31mError\033[0m ] display.c/main() :recv_msg.choice:%d 无法识别\n",recv_msg.choice);
 			printf("%s","\033[1H\033[2J");
 		}
 	}
@@ -75,23 +76,42 @@ void displayMainMenu(void)
 	return;
 }
 
-void displayUserMenu(int add_num,int unread_msg_num)
+void displayUserMenu(char num_text[])
 {
+	int i=0,j=0;
+	char add_num[8],unread_msg_num[8];
+	/* 分隔文件,分割条件:| */
+	while(num_text[i]!='|'){
+		add_num[i] = num_text[i];
+		i++;
+	}
+	add_num[i]='\0';
+	i++;
+	while(num_text[i]!='\0'){
+		unread_msg_num[j++] = num_text[i];
+		i++;
+	}
+	unread_msg_num[j]='\0';
 	printf("%s","\033[1H\033[2J"); 
 	printf ("\t----------\33[34m菜\33[0m-----------------\n");
 	printf ("\t--------------\33[34m单\33[0m-------------\n");
-	printf ("\t|\t#  验证消息%d\t    |\n",add_num);
-	printf ("\t|\t@  未读消息%d\t    |\n",unread_msg_num);
+	printf ("\t|\t#  验证消息%s\t    |\n",add_num);
+	printf ("\t|\t@  未读消息%s\t    |\n",unread_msg_num);
 	printf ("\t|\t*  刷新消息键\t    |\n");
 	printf ("\t|\t1  罗列闺蜜团\t    |\n");
 	printf ("\t|\t2  闺蜜私房话\t    |\n");
-	printf ("\t|\t3  名媛拼夕夕\t    |\n");
+	printf ("\t|\t3  磕瓜吐槽会\t    |\n");
 	printf ("\t|\t4  给闺蜜转账\t    |\n");
 	printf ("\t|\t5  首冲大礼包\t    |\n");
 	printf ("\t|\t6  图大伙一乐\t    |\n");
 	printf ("\t|\t7  拼手气时刻\t    |\n");
 	printf ("\t|\t8  寻找真闺蜜\t    |\n");
 	printf ("\t|\t10  查询余额\t    |\n");
+	printf ("\t|\t11  修改密码\t    |\n");
+	printf ("\t|\t12  删除好友\t    |\n");
+	printf ("\t|\t13  找群叭叭\t    |\n");
+	printf ("\t|\t14  发送文件\t    |\n");
+	printf ("\t|\t15  注销用户\t    |\n");
 	printf ("\t|\texit 退出登入\t    |\n");
 	printf ("\t----------\33[34m功\33[0m-----------------\n");
 	printf ("\t--------------\33[34m能\33[0m-------------\n");

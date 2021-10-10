@@ -30,7 +30,11 @@ int setPwd(void)
     int res;
     char buf[1024],send_buf[1024];;
     char command[1024];
+<<<<<<< HEAD
     Msg msg_send = {1,"none"};
+=======
+    Msg msg_send = {-1,"none"};
+>>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 
     msg_send.choice=INULLMENU;
 	strcpy(msg_send.text,"\033[1H\033[2J");
@@ -52,9 +56,14 @@ int setPwd(void)
 
         if(res == 0){ /*成功 */
 			//等待服务器读取数据结果
+<<<<<<< HEAD
 			sem_wait(&global_sem);
 			strcpy(buf,global_sem_buf);
 			
+=======
+			if(recv(curSockfd,buf,32,0)<0)
+				perror("recv");
+>>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 			if(strcmp(buf,"ILLEGAL")==0){	/* 没有读到消息 */
 				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c setPwd():表单数据缓冲失败,即将终止操作\n");
 				myMsgSend(msg_send);
@@ -69,8 +78,13 @@ int setPwd(void)
 			}
 			
 			//等待服务器读取判断结果
+<<<<<<< HEAD
 			sem_wait(&global_sem);
 			strcpy(buf,global_sem_buf);
+=======
+			if(recv(curSockfd,buf,32,0)<0)
+				perror("recv");
+>>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 			if(strcmp(buf,"old_error")==0){	/* 接收到old_error代表原密码有误 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 原密码 \033[31mX\033[0m\n");
 				myMsgSend(msg_send);
@@ -114,6 +128,7 @@ int setPwd(void)
         
     }
     return SUCCESS;
+<<<<<<< HEAD
 }
 
 /*
@@ -534,4 +549,6 @@ void closeServer(void)
 	}
 
 	return;
+=======
+>>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 }

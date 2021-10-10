@@ -53,7 +53,7 @@ char *myRecv(int sockfd)
 						/* 加static修饰符是为了改变buf的生命周期,使其成为全局变量,供调用者使用 						   */
 	memset(buf,0,1024); /* 清除数据区 */
 	recv_len = recv(sockfd,buf,1024,0);
-	printf("recv_buf:%s\n",buf);
+	DPRINTF("[ \033[33mRecv_Buf\033[0m ] : %s\n",buf);
 	if(recv_len<0){ 
 		/* 接收出错 SOCKET_ERROR */
 		perror("[ \033[31mError\033[0m ] msghand.c myRecv():");
@@ -68,8 +68,8 @@ char *myRecv(int sockfd)
 			user->sockfd = -1;
 			user->login_t = -1;
 			//user->login_pid = -1; @[Warn]:暂时不知道会不会用到
-			user->group_state = -1;
-			user->online_state = -1;
+			user->group_state = 0;
+			user->online_state = 0;
 			/* 关闭消息队列 */
 			msg_id = atoi(user->msg_id_text); /* 获取消息队列表示符 */
 			msgctl(msg_id,IPC_RMID,0); 
@@ -97,21 +97,122 @@ char *myRecv(int sockfd)
 
 /*
 ****************************************************************************************
-*                                服务器消息处理线程
+*                                服务器接收消息处理线程
 *
 * @Desc  : 为每个登入成功的客户端打开一个消息处理线程,对接收的消息进行二次处理
 * @
 * @return: 
 * @Note  : 
-* sem[0]-c-选项类消息
-* sem[1]-f-金钱类消息
-* sem[2]-n-名字类消息
-* sem[3]-m-验证类消息
+* sem[0] - 普通收发数据
+* sem[0] 
+* sem[1] 
+* sem[2] 
+* sem[3] 
 * sem[4]...
 * sem[5]
 ****************************************************************************************
 */
-void reactMsg()
+void pthread_Recv(struct User *user)
 {
+	int i;
+	int len;
+	int sockfd;
+	char buf[1024],msg[1024];
+	pthread_t preact_id;
+	
+	pthread_detach(pthread_self());	/*修改线程资源等级,意外结束时自动释放资源*/
+
+	sockfd = user->sockfd; /* 获取sockfd,是为了 少打点字&结束线程的顺序合理 */
+	
+	//循环等待接收
+	while(1){
+		len = recv(sockfd,buf,1024,0);
+		DPRINTF("[ \033[33mPRecv_Buf\033[0m ] : %s\n",buf);
+		if(len<0){
+			perror("server/msgops.c() pthread_Recv:recv_len --");
+			close(sockfd);	/* 关闭套接字 */
+			
+			/* @[Warn]:应该是不需要杀死客户端,那就不需要进程号,<0会有哪些实例 	*/
+			strcpy(buf,"kill ");
+			strcat(buf,user->login_pid);
+			system(buf);			/* 结束客户端函数 */
+		
+			/* 执行下线状态清除 */
+			strcpy(user->login_pid,"null");
+			strcpy(user->msg_id_text,"null");
+			strcpy(user->msg_key_text,"null");
+			strcpy(user->inet_ip_text,"null");	
+			
+			user->sockfd = -1;
+			user->group_state = 0;
+			user->online_state = 0;
+			user->login_t = 0;
+			
+			user->duration += (time(NULL)-user->login_t);
+			preact_id = user->preact_id;	/* 获取父线程的id */
+			user->precv_id = 0;
+			user->preact_id = 0;
+			//user->avail_flag = ILLEGAL;		/* 设置节点状态为非法退出 */
+			//保存修改结果
+			writeFile(USER);
+			//关闭父线程 也就是每个客户端的响应线程
+			pthread_cancel(preact_id);
+
+			//提示输出
+			printf("#system msg:\t\33[34m%s\33[0m 名媛已被强制下线！\n",user->name);
+			printf("[ \033[31mError\033[0m ] 客户端%d",sockfd);
+	    	printf(" \033[31m已断开连接\033[0m\n");
+
+			//关闭孙线程 也就是当前每个客户端响应线程的消息接收处理线程
+			pthread_exit(NULL);
+		}else if(len==0){ /* 网络异常&通讯中断 */
+			printf("[ \033[31mError\033[0m ] server/msgops.c pthread_Recv():用户%s异常中断通信\n",user->name);
+			close(sockfd);	/* 关闭套接字 */
+			/* 执行下线状态清除 */
+			strcpy(user->login_pid,"null");
+			strcpy(user->msg_id_text,"null");
+			strcpy(user->msg_key_text,"null");
+			strcpy(user->inet_ip_text,"null");	
+			
+			user->sockfd = -1;
+			user->group_state = 0;
+			user->online_state = 0;
+			user->login_t = 0;
+			
+			user->duration += (time(NULL)-user->login_t);
+			preact_id = user->preact_id;	/* 获取父线程的id */
+			user->precv_id = 0;
+			user->preact_id = 0;
+			//user->avail_flag = ILLEGAL;		/* 设置节点状态为非法退出 */
+			//保存修改结果
+			writeFile(USER);
+			//关闭父线程 也就是每个客户端的响应线程
+			pthread_cancel(preact_id);
+
+			//提示输出
+			printf("#system msg:\t\33[34m%s\33[0m 名媛已被强制下线！\n",user->name);
+			printf("[ \033[31mError\033[0m ] 客户端%d",sockfd);
+	    	printf(" \033[31m已断开连接\033[0m\n");
+
+			//关闭孙线程 也就是当前每个客户端响应线程的消息接收处理线程
+			pthread_exit(NULL);
+		}
+
+		//正常接收->正常处理
+		/* 剔除标识符 */
+		len = strlen(buf);
+		for(i=1;i<len;i++){
+			msg[i-1] = buf[i];
+		}	
+		msg[i-1]='\0';
+
+		/* 判断消息类型 */
+		if(buf[0]=='-'){		/* sem[0]:当前客户端发来的普通消息 */
+			strcpy(user->sem_buf[0],msg);
+			sem_post(&user->sem[0]);
+		}else{
+			printf("[ \033[32mWarn\033[0m ] pthread_Recv(): 数据:%s 无法识别\n",buf);
+		}
+	}
 	
 }

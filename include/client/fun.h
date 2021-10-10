@@ -6,6 +6,7 @@
  ************************************/
 #include "client.h"
 
+<<<<<<< HEAD
 //普通用户功能
 int setPwd(void);
 void addFriend(void);
@@ -16,6 +17,9 @@ void disposeAddMsg(void);
 //管理员功能
 void offLineUser(void);
 void closeServer(void);
+=======
+int setPwd(void);
+>>>>>>> d74237340dcc58332f739d9a56481c6f68ee272d
 
 #endif
 

@@ -31,6 +31,6 @@ int msg_id; /* 存放消息队列标识符 */
 
 void displayMainMenu(void);
 void displayRootMenu(void);
-void displayUserMenu(int,int);
+void displayUserMenu(char[]);
 
 #endif
