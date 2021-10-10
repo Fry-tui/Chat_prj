@@ -78,15 +78,16 @@ void reactMainMenu(int *sockfd)
 void reactUserMenu(struct User *user)
 {
 	int res;
-	char buf[1024];
+	char buf[1024],send_text[1024];
 	char add_num[8],unread_msg_num[8];
 	pthread_t id;
+	int detime = 10000000;
 	
 	//Step 1:创建接收线程,退出时销毁
 	pthread_create(&id,NULL,(void *)pthread_Recv,(void *)user);
 	user->preact_id = id;
 	writeFile(USER);
-	/* @[Warn]:之前这里做了一个信号量的清楚操作,目前暂时用不到 */
+	/* @[Warn]:之前这里做了一个信号量的清除操作,目前暂时用不到 */
 	
 	while(1){
 		/* 封装 验证消息|未读消息 拼接字符 并发送 */
@@ -96,7 +97,9 @@ void reactUserMenu(struct User *user)
 		strcat(buf,"|");
 		strcat(buf,unread_msg_num);
 		strcat(buf,"\0");
-		if(send(user->sockfd,buf,1024,0)<0)
+		strcpy(send_text,"-");
+		strcat(send_text,buf);
+		if(send(user->sockfd,send_text,1024,0)<0)
 			perror("send");
 		//printf("add|read=%s\n",buf);
 		
@@ -120,7 +123,9 @@ void reactUserMenu(struct User *user)
 		}else if(strcmp(buf,"7")==0){
 			//grabRedp();
 		}else if(strcmp(buf,"8")==0){
-			//addFriend();
+			addFriend(user);
+			detime = 10000000;
+			while(detime--);	/* 延时0.1s */
 		}else if(strcmp(buf,"9")==0){
 			
 		}else if(strcmp(buf,"10")==0){
@@ -130,7 +135,7 @@ void reactUserMenu(struct User *user)
 			if(res==SUCCESS){
 				DPRINTF("[ \033[34mInfo\033[0m ] 用户:%s修改密码成功,自动登出就绪\n",user->name);
 				pthread_cancel(user->preact_id);
-				return;
+				break;
 			}
 		}else if(strcmp(buf,"12")==0){
 			//delFriend();
@@ -141,20 +146,65 @@ void reactUserMenu(struct User *user)
 		}else if(strcmp(buf,"15")==0){
 			//cancelUser(user);
 		}else if(strcmp(buf,"#")==0){
-			//listAddMsg();
+			listAddMsg(user);
+			disposeAddMsg(user);
 		}else if(strcmp(buf,"@")==0){
 			//listUnreadMsg();
 		}else if(strcmp(buf,"*")==0){
 			/* 不执行操作 */
 		}else if(strcmp(buf,"exit")==0){
 			pthread_cancel(user->preact_id);
-			return;
+			break;
 		}else{
 			printf("[ \033[32mWarn\033[0m ] menureact.c reactUserMenu():无法识别:%s\n",buf);
 			sleep(1);
 		}
 		//inspectRedp();	/* 检测红包效期函数 */
 	}
+
+	pthread_cancel(id);
+	return;
+}
+
+/*
+****************************************************************************************
+*                                  管理员菜单
+* @Desc  : 
+* @*user : 
+* @Note	 : 
+* @return: 无返回值
+****************************************************************************************
+*/
+void reactRootMenu(int sockfd,char inet_ip[])
+{
+	int res;
+	char buf[1024],send_text[1024];
+	int detime = 10000000;
+	
+	while(1){
+		
+		//接收选项
+		strcpy(buf,myRecv(sockfd));
+		
+		//判断选项
+		if(strcmp(buf,"1")==0){
+			//rmUser();
+		}else if(strcmp(buf,"2")==0){
+			offLineUser(sockfd,inet_ip);
+		}else if(strcmp(buf,"3")==0){
+			listLinklistU(sockfd);
+		}else if(strcmp(buf,"4")==0){
+			//bcAnnouncement();
+		}else if(strcmp(buf,"5")==0){
+			closeServer(sockfd);
+		}else if(strcmp(buf,"exit")==0){
+			return;
+		}else{
+			printf("[ \033[32mWarn\033[0m ] menureact.c reactRootMenu():无法识别:%s\n",buf);
+			sleep(1);
+		}
+	}
+
 	return;
 }
 
