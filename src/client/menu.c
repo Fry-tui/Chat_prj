@@ -214,7 +214,7 @@ void rootMenu(void)
 		
 		//判断选项
 		if(strcmp(buf,"1")==0){
-			//rmUser();
+			rmUser();
 		}else if(strcmp(buf,"2")==0){
 			offLineUser();
 		}else if(strcmp(buf,"3")==0){

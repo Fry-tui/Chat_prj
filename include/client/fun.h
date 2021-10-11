@@ -17,5 +17,7 @@ void disposeAddMsg(void);
 void offLineUser(void);
 void closeServer(void);
 
+void rmUser(void);
+
 #endif
 

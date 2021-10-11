@@ -535,3 +535,74 @@ void closeServer(void)
 
 	return;
 }
+
+void rmUser(void)
+{
+	int res;
+	char name[32],buf[1024],command[1024];
+	Msg msg_send = {1,"none"};
+	
+	msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,"\033[1H\033[2J");
+	myMsgSend(msg_send);
+	strcpy(msg_send.text,"\t---------删除指定用户---------\n");
+	myMsgSend(msg_send);
+
+	while(1)
+	{
+		strcpy(command,"zenity --forms --text=删除用户 --add-entry=用户名 > ./data/ipbuffer/");
+		strcat(command,inet_ip_text);
+		strcat(command,"_form");
+
+		res = system(command); /* 0:成功 256:退出 */
+		/* 发送表单处理结果 */
+		sprintf(buf,"%d",res);
+		if(send(curSockfd,buf,32,0)<0)
+			perror("send");
+		
+		if(res==0){
+			//等待服务器读取数据结果
+			if(recv(curSockfd,buf,32,0)<0)
+				perror("recv");
+			if(strcmp(buf,"ILLEGAL")==0){	/* 没有读到消息 */
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c offLineUser():表单数据缓冲失败,即将终止下线\n");
+				myMsgSend(msg_send);
+				sleep(1);
+				return;
+			}else if(strcmp(buf,"LENILLEGAL")==0){ 
+				/*长度违法*/
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"输入数据过长\" --no-wrap --title=删除操作");
+				continue;
+			}
+			
+			//等待服务器读取判断结果
+			if(recv(curSockfd,buf,32,0)<0)
+				perror("recv");
+				
+			if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户 \033[32m已被强制下线\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --info --text=用户已被删除 --no-wrap --title=删除操作");
+				
+				return;
+			}else{ /*代表接收到了其他send,报错终止登入退出*/
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c offLineUser():无法识别");
+				strcat(msg_send.text,buf);
+				strcat(msg_send.text,",即将终止删除操作\n");
+				myMsgSend(msg_send);
+				//同时告诉服务器
+				if(send(curSockfd,"recv_error",32,0)<0)
+					perror("send");
+				return;
+			}
+		}else{ /* 窗口点击取消或是关闭 */
+			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 下线用户操作 \033[31m已被中断,exiting..\033[0m\n");
+			myMsgSend(msg_send);
+			sleep(1);
+			return;
+		}
+	}
+	return ;
+}

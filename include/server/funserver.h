@@ -18,6 +18,8 @@ void disposeAddMsg(struct User * user);
 void closeServer(int);
 void offLineUser(int,char[]);
 
+void rmUser(int ,char []);
+
 
 #endif
 

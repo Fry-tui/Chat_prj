@@ -110,7 +110,7 @@ void reactRegister(int sockfd,char inet_ip[])
 	/*@[Warn]:说实话我觉得服务器关闭显示屏有点多余了*/
 	//初始化结构体
 	
-	//printf("set start\n");
+	printf("set start\n");
 	strcpy(user.name,buffer->name);
 	strcpy(user.password,buffer->pwd);
 	strcpy(user.login_pid,"null");
@@ -118,14 +118,14 @@ void reactRegister(int sockfd,char inet_ip[])
 	strcpy(user.msg_key_text,"null");
 	strcpy(user.inet_ip_text,"null");
 	
-	//printf("strcpy ovrt\n");
+	printf("strcpy ovrt\n");
 	user.avail_flag = LEGAL;
 	user.sockfd = -1;
 	user.add_num = 0;
 	user.friend_num = 0;
 	user.unread_msg_num = 0;
 	
-	//printf("int ovrt\n");
+	printf("int ovrt\n");
 	for(i=0;i<32;i++){
 		strcpy(user.add_name[i],"");
 		strcpy(user.add_msg[i],"");
@@ -133,7 +133,7 @@ void reactRegister(int sockfd,char inet_ip[])
 	for(i=0;i<128;i++){
 		strcpy(user.unread_msg[i],"");
 	}
-	//printf("arr ovrt\n");
+	printf("arr ovrt\n");
 	user.group_state = 0;
 	user.online_state = 0;
 	user.balance = 0;
@@ -145,17 +145,17 @@ void reactRegister(int sockfd,char inet_ip[])
 	}
 	user.precv_id = 0;
 	user.preact_id = 0;
-	//printf("set over\n");
+	printf("set over\n");
 	//添加节点
 	addNode(USER,user,empty);
-	//printf("addNode over\n");
+	printf("addNode over\n");
 	//存档
 	writeFile(USER);
 	/* @[Warn]:数据data文件夹新增用户文件,注册时需要添加，移除时也要 */
 	strcpy(command,"mkdir ./data/");
 	strcat(command,user.name);
 	system(command);
-	//printf("writeFile over\n");
+	printf("writeFile over\n");
 	if(send(sockfd,"reg_success",32,0)<0)
 		perror("send");
 	DPRINTF("[ \033[34mInfo\033[0m ] 用户:%s完成注册\n",user.name);

@@ -219,8 +219,8 @@ void addFriend(struct User * user)
 * @Desc  : 发送验证数量,逐个发送验证消息
 * @return: 无返回值
 * @Note  : 
-！！！注意：由于客户端recv和sem_wait的处理速度不匹配所以下一次发送需要等到就绪信号�
-�
+！！！注意：由于客户端recv和sem_wait的处理速度不匹配所以下一次发送需要等到就绪信号�
+�
 ****************************************************************************************
 */
 void listAddMsg(struct User * user)
@@ -534,5 +534,81 @@ void closeServer(int sockfd)
 		return;
 	}
 	return;
+}
+
+/*
+****************************************************************************************
+*                                 	 删除指定用户
+* @Desc  :
+* @return: 返回值1为成功，0为失败
+****************************************************************************************
+*/
+void rmUser(int sockfd,char inet_ip[])
+{
+	char buf[1024];
+	char send_text[1024];
+	struct User * user;
+	struct Buffer * buffer;
+	user = (struct User *)malloc(sizeof(struct User));
+	buffer = (struct Buffer *)malloc(sizeof(struct Buffer));
+	
+	while(1){
+		strcpy(buf,myRecv(sockfd)); /* 等待执行表单的返回结果 */
+
+		if(strcmp(buf,"0")==0){	 /* 存入数据成功 */
+			//读表单数据函数
+			readBuffer(NAMEFORMBUF,1,"_form",(void *)buffer,inet_ip);
+			if(buffer->avail_flag==ILLEGAL){
+				//发送不合法
+				if(send(sockfd,"ILLEGAL",32,0)<0)
+					perror("send");
+				return;
+			}else if(buffer->avail_flag==LENILLEGAL){
+				//发送长度不合法
+				if(send(sockfd,"LENILLEGAL",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				//发送读到了
+				if(send(sockfd,"READOVER",32,0)<0)
+					perror("send");
+			}
+
+			/* 如果接收空输入 */
+			if(strcmp(buffer->name,"")==0)
+			{
+				if(send(sockfd,"NULL",32,0)<0)
+					perror("send");
+				continue;
+			}
+			
+			//判断数据			
+			user = delUserNode(USERNAME,buffer->name,0);
+			if(user==NULL){
+				//告知用户未注册
+				if(send(sockfd,"name",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				//存在
+				//保存修改结果
+				writeFile(USER);
+				//printf("成功写入\n");
+				//告知成功
+				if(send(sockfd,"success",32,0)<0)
+					perror("send");
+				//printf("发送成功成功\n");
+				return;
+			}
+		}else if(strcmp(buf,"recv_error")==0){ /* 如果管理员退出 */
+			return;
+		}else{	/* 存失败 */
+			printf("[ \033[31mError\033[0m ] reactRootMenu():管理员中断下线用户操作\n");
+			return;
+		}
+	}
+	return;
+	
+		
 }
 
