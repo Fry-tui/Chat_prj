@@ -139,8 +139,12 @@ void userMenu(void)
 		//判断选项
 		if(strcmp(buf,"1")==0){
 			listFriends();
+			printf(":");
+			scanf("%s",buf);
+			if(send(curSockfd,"-end_List",1024,0)<0)
+				perror("send");
 		}else if(strcmp(buf,"2")==0){
-			//priChat();
+			priChat();
 		}else if(strcmp(buf,"3")==0){
 			//pubChat();
 		}else if(strcmp(buf,"4")==0){

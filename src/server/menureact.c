@@ -110,8 +110,9 @@ void reactUserMenu(struct User *user)
 		//判断选项
 		if(strcmp(buf,"1")==0){
 			listFriends(user);
+			sem_wait(&user->sem[0]);
 		}else if(strcmp(buf,"2")==0){
-			//priChat();
+			priChat(user);
 		}else if(strcmp(buf,"3")==0){
 			//pubChat();
 		}else if(strcmp(buf,"4")==0){
@@ -182,10 +183,10 @@ void reactRootMenu(int sockfd,char inet_ip[])
 	int detime = 10000000;
 	
 	while(1){
-		
+		printf("re recv\n");
 		//接收选项
 		strcpy(buf,myRecv(sockfd));
-		
+		printf("recive over!%s\n",buf);
 		//判断选项
 		if(strcmp(buf,"1")==0){
 			rmUser(sockfd,inet_ip);
@@ -193,6 +194,7 @@ void reactRootMenu(int sockfd,char inet_ip[])
 			offLineUser(sockfd,inet_ip);
 		}else if(strcmp(buf,"3")==0){
 			listLinklistU(sockfd);
+			//printf("exit function\n");
 		}else if(strcmp(buf,"4")==0){
 			//bcAnnouncement();
 		}else if(strcmp(buf,"5")==0){

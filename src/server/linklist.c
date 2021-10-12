@@ -190,6 +190,7 @@ struct User * reviseUserNode(int key,char name[],int sockfd)
 * @return: 成功:SUCCESS 失败:FAILD
 ****************************************************************************************
 */
+/* @[Warn]:判断用户是否在线,在线需要强制下线|删除用户文件夹 */
 int delUserNode(int key,char name[],int sockfd)
 {	
 	LinklistU p = U; 

@@ -18,11 +18,171 @@
 *********************************************************************************************************
 */
 #include "../../include/client/fun.h"
+
+/*
+****************************************************************************************
+*                                  私聊
+* @Desc  : @xyq:somethingNeedYouKnow
+* @return: 
+****************************************************************************************
+*/
+void priChat(void)
+{
+	int i,j,k,res,num;
+    char buf[1024],send_buf[1024],fname[32],name[32];
+    char command[1024];
+    Msg msg_send = {1,"none"};
+
+	//罗列好友
+	listFriends();
+
+	//输入聊天对象,输入结果交由服务器判断,并作返回
+	while(1){
+		printf("请选择:");
+		scanf("%s",buf);
+
+		strcpy(send_buf,"-");
+		strcat(send_buf,buf);
+		if(send(curSockfd,send_buf,32,0)<0)
+			perror("send");
+
+		sem_wait(&global_sem);
+		strcpy(buf,global_sem_buf);
+
+		if(strcmp(buf,"exit")==0){
+			DPRINTF("[ \033[34mInfo\033[0m ] 退出私聊程序\n");
+			if(send(curSockfd,"-exit_priChat",32,0)<0)
+				perror("send");
+			return;
+		}else if(strcmp(buf,"error_input")==0){
+			printf("\t\033[31mX\033[0m输入有误\n");
+			continue;
+		}else{
+			/* 可以退出该输入程序 */
+			break;
+		}
+	}
+
+	//启动就绪信号
+	if(send(curSockfd,"-start_priChat",32,0)<0)
+		perror("send");
+
+	//接收好友的名字
+	sem_wait(&global_sem);
+	strcpy(fname,global_sem_buf);
+
+	//刷新显示屏
+	msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,"\033[1H\033[2J");
+	myMsgSend(msg_send);
+	strcpy(msg_send.text," __________________________________________\n");
+	myMsgSend(msg_send);
+	middleText(fname);
+	strcpy(msg_send.text,"|^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|\n");
+	myMsgSend(msg_send);
+
+	//接收消息数量
+	if(send(curSockfd,"-num_ready",32,0)<0)		/* 发送接收就绪信号 */
+		perror("send");
+	sem_wait(&global_sem);
+	strcpy(buf,global_sem_buf);
+
+	num=atoi(buf);	/* 转化字符串 */
+
+	//判断	有无未读消息
+	if(num!=0){
+		for(i=0;i<num;i++){
+			if(send(curSockfd,"-msg_ready",32,0)<0)		/* 发送接收就绪信号 */
+				perror("send");
+			sem_wait(&global_sem);
+			strcpy(buf,global_sem_buf);
+			alignLeft(buf);								/* 靠左对齐打印文本 */
+			middleText(" ");							/* 换行 */
+		}
+	}else{
+		//发送接收已读消息数量就绪
+		if(send(curSockfd,"-num_ready",32,0)<0)		/* 发送接收就绪信号 */
+			perror("send");
+		sem_wait(&global_sem);
+		strcpy(buf,global_sem_buf);
+		num = atoi(buf);
+
+		if((num>0) && (num<7)){
+			for(i=0;i<num;i++){
+				if(send(curSockfd,"-msg_ready",32,0)<0)		/* 发送接收就绪信号 */
+					perror("send");
+				sem_wait(&global_sem);
+				strcpy(buf,global_sem_buf);
+				alignLeft(buf);								/* 靠左对齐打印文本 */
+				middleText(" ");							/* 换行 */
+			}
+		}else if(num>6){
+			for(i=0;i<6;i++){
+				if(send(curSockfd,"-msg_ready",32,0)<0)		/* 发送接收就绪信号 */
+					perror("send");
+				sem_wait(&global_sem);
+				strcpy(buf,global_sem_buf);
+				alignLeft(buf);								/* 靠左对齐打印文本 */
+				middleText(" ");							/* 换行 */
+			}
+		}else{
+			middleText("暂无聊天记录");
+		}
+	}
+
+	if(send(curSockfd,"-name_ready",32,0)<0)		/* 发送接收就绪信号 */
+		perror("send");
+	sem_wait(&global_sem);
+	strcpy(name,global_sem_buf);					/* name:当前用户的名字 */
+
+	//等待用户输入
+	while(1){
+		printf("%s","\033[1H\033[2J");
+		printf(":");
+		scanf("%s",buf);
+
+		if(strCnlen(buf)>99){
+			printf("\t超出字数限制\n");
+			sleep(1);
+			continue;
+		}
+
+		/* 作判断 */
+		if(strcmp(buf,"exit")==0){
+			if(send(curSockfd,"@exit",32,0)<0)		/* 发送接收就绪信号 */
+				perror("send");
+			break;
+		}
+
+		/* 发到显示屏上 */
+		strcpy(msg_send.text,name);
+		strcat(msg_send.text,":");
+		strcat(msg_send.text,buf);
+		alignLeft(msg_send.text);
+
+		/* 发给自己的服务器,进行存储,同时也转发给对方 */
+		strcpy(send_buf,"@");
+		strcat(send_buf,buf);
+		if(send(curSockfd,send_buf,128,0)<0)
+			perror("send_msg");
+
+		/* 等待处理结果|等待下一次处理就绪信号 */
+		sem_wait(&global_sem);
+		middleText(" ");
+		printf("[ \033[33m✔\033[0m ]\n");
+		sleep(1);
+	}
+	
+	sem_wait(&global_sem);	/* 等待退出信号 */
+	
+	return;
+}
+
 /*
 ****************************************************************************************
 *                                  修改密码
 * @Desc  : 修改用户密码
-* @return: 放回操作结果
+* @return: 返回操作结果
 ****************************************************************************************
 */
 int setPwd(void)
@@ -240,6 +400,9 @@ void listAddMsg(void)
 	strcpy(msg_send.text,"\t---------验证消息列表---------\n");
 	myMsgSend(msg_send);
 
+	if(send(curSockfd,"-num_ready",32,0)<0)
+		perror("send");
+
 	/* 等待消息数量 */
 	sem_wait(&global_sem);
 	strcpy(buf,global_sem_buf);
@@ -306,11 +469,18 @@ void disposeAddMsg(void)
 	printf("请处理:");
 	scanf("%s",buf);
 
+	/* 等待就绪信号 */
+	sem_wait(&global_sem);
+
 	/* 发送处理选项 */
 	strcpy(send_text,"-");
 	strcat(send_text,buf);
 	if(send(curSockfd,send_text,32,0)<0)
 		perror("send");
+
+	if(strcmp(buf,"exit")==0){
+		return;
+	}
 
 	/* 等待处理结果 */
 	sem_wait(&global_sem);
@@ -391,9 +561,9 @@ void listFriends(void)
 	myMsgSend(msg_send);
 
 	/* @[Warn]:这个函数应该被封装成通用函数,后续撤掉功能 */
-	sleep(1);
+	//sleep(1);
 
-	if(send(curSockfd,"-exit_listAddMsg",32,0)<0)
+	if(send(curSockfd,"-exit_listFriends",32,0)<0)
 		perror("send");
 	return;
 }
@@ -536,6 +706,149 @@ void closeServer(void)
 	return;
 }
 
+
+/*
+****************************************************************************************
+*                            测试字符串的长度(包含中文)
+* @Desc  : 两个中文=三个英文的长度
+*		 : 写太早了忘记干嘛的,但是可以用,区别于strlen测出来的
+			strCnlen("中文123");	//1+1+1+1+1=5
+			strlen("中文123");//3+3+3+1+1+1=12
+			
+* @return: 返回字符串的个数
+****************************************************************************************
+*/
+int strCnlen(char msg[])
+{
+	int j=0,count=0,msgLen=0;
+	for(j=0;msg[j];j++){
+		if(msg[j] & 0x80)
+			count++;
+		else
+			msgLen++;
+		if(count==3){
+			count=0;
+			msgLen+=2;
+		}
+	}
+	msgLen--;
+	return msgLen;
+}
+
+/*
+****************************************************************************************
+*                            居中显示字符串
+* @Desc  : 
+* @text	 : 需要居中显示的文本			
+* @return: 
+****************************************************************************************
+*/
+void middleText(char text[])
+{
+	int i,j,k;
+	int cnLen;
+	char buf[1024];
+	Msg msg_send = {1,"none"};
+	
+	//计算字符串个数
+	cnLen=strCnlen(text);
+	
+	strcpy(buf,"|");	/* 拼头 */
+	
+	for(i=(41-cnLen)/2;i>0;i--)	
+		strcat(buf," ");	/* 拼前空 */
+		
+	strcat(buf,text);
+	
+	for(i=(41+cnLen)/2;i<41;i++)
+		strcat(buf," ");	/* 拼后空 */
+	
+	strcat(buf,"|\n\0");	/* 拼尾 */
+	
+	msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,buf);
+	myMsgSend(msg_send);
+	
+	return;
+}
+
+/*
+****************************************************************************************
+*                            左对齐显示字符串
+* @Desc  : 
+* @text	 : 需要左对齐显示的文本			
+* @return: 
+****************************************************************************************
+*/
+void alignLeft(char text[])
+{	
+	int i=1,j=0,k=0;
+	int cnt=0,ent=1;
+	int enLen,cnLen;
+	char buf[1024];
+	Msg msg_send = {1,"none"};
+
+	enLen=strlen(text);			//字符长度
+	cnLen=strCnlen(text);		//字符个数
+	msg_send.choice=INULLMENU;	//选择无页面输出
+
+	if(cnLen<43){	
+		strcpy(buf,"|");	/* 拼头 */
+		strcat(buf,text);	/* 拼文本 */
+		for(i=cnLen;41-i>0;i++)
+			strcat(buf," ");
+		strcat(buf,"|\n\0");/* 拼尾 */
+		strcpy(msg_send.text,buf);
+		myMsgSend(msg_send);
+	}else{
+		strcpy(buf,"|");	/* 拼头 */
+		
+		while(j<enLen){
+			/* 计算个数:处理行末 */
+			if(text[j] & 0x80)
+				cnt++;
+			else
+				ent++;
+			
+			/* 逐一赋值 */
+			buf[i++]=text[j++];
+			
+			/* 计数进位 */
+			if(cnt>2){
+				cnt = 0;
+				ent += 2;
+			}
+			
+			if((cnt==0)&&(ent>40&&ent<43)){
+				//printf("ent=%d\n",ent);
+				/* 只有中文完整的输出后 并且到了行末 剩下的空格补位*/
+				for(ent=43-ent;ent>0;ent--){
+					buf[i++] = ' ';
+				}
+				buf[i++] = '|';
+				buf[i++] = '\n';
+				buf[i++] = '|';
+			}
+		}
+		for(ent = 42-ent;ent>0;ent--)
+			buf[i++] = ' ';
+		buf[i++] = '|';
+		buf[i++] = '\n';
+		buf[i++] = '\0';
+		strcpy(msg_send.text,buf);
+		myMsgSend(msg_send);
+	}
+	return;
+}
+
+
+/*
+****************************************************************************************
+*                                 	 管理员删除指定用户
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
 void rmUser(void)
 {
 	int res;
@@ -581,11 +894,18 @@ void rmUser(void)
 			if(recv(curSockfd,buf,32,0)<0)
 				perror("recv");
 				
-			if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
+			if(strcmp(buf,"name")==0){
+				system("zenity --info --text=用户不存在 --no-wrap --title=删除操作");
+				continue;
+			}else if(strcmp(buf,"NULL")==0){ /* 有表单输入为空 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"输入框不能为空\" --no-wrap --title=删除操作");
+				continue;
+			}else if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 用户 \033[32m已被强制下线\033[0m\n");
 				myMsgSend(msg_send);
 				system("zenity --info --text=用户已被删除 --no-wrap --title=删除操作");
-				
 				return;
 			}else{ /*代表接收到了其他send,报错终止登入退出*/
 				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c offLineUser():无法识别");

@@ -19,6 +19,286 @@
 */
 #include "../../include/server/funserver.h"
 
+/*
+****************************************************************************************
+*                                  私聊
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
+void priChat(struct User * user)
+{
+	int i,j,k;
+	int sockfd;
+	char buf[1024],send_text[1024];
+	char unread_msg_name[32];
+	char unread_msg[128][128];
+	int unread_num=0;
+	struct Buffer *buffer;
+	struct Friend *u_fnode;//user节点中的fnode
+	struct Friend *f_unode;//好友节点中的unode
+	sockfd = user->sockfd;
+	buffer = (struct Buffer *)malloc(sizeof(struct Buffer));
+
+	//罗列好友
+	listFriends(user);
+
+	//等待客户端发送选择结果,返回判断结果
+	while(1){
+		sem_wait(&user->sem[0]);
+		strcpy(buf,user->sem_buf[0]);
+
+		if(strcmp(buf,"exit")==0){
+			if(send(sockfd,"-exit",32,0)<0)
+				perror("send");
+			sem_wait(&user->sem[0]);
+			DPRINTF("[ \033[34mInfo\033[0m ] 退出私聊响应程序\n");
+			return;
+		}else{
+			for(i=0;i<user->friend_num;i++){
+				if(strcmp(user->friends[i].puser->name,buf)==0){
+					/* 找到用户 */
+					break;
+				}
+			}
+			
+			if(i>=user->friend_num){
+				/* 发送错误输入 */
+				if(send(sockfd,"-error_input",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				if(send(sockfd,"-end_input",32,0)<0)
+					perror("send");
+				break;
+			}
+		}
+	}
+
+	/* 等待就绪信号 */
+	sem_wait(&user->sem[0]);
+
+	//指向操作:便于管理
+	/* 直接访问对方用户节点 -> 获取user->friends[i],包括了自己的一些聊天记录 */
+	u_fnode = (struct Friend *)malloc(sizeof(struct Friend));	/* 指针初始化 */
+	u_fnode = &user->friends[i];
+	/* 访问对方用户节点里的好友结构体数组关于我的那个 user->friends[i]*/
+	f_unode = (struct Friend *)malloc(sizeof(struct Friend));
+	for(i=0;i<u_fnode->puser->friend_num;i++){
+		/* 寻找对方用户节点中属于我的好友结构体 */
+		if(strcmp(user->name,u_fnode->puser->friends[i].puser->name)==0){
+			f_unode = &u_fnode->puser->friends[i];
+			break;
+		}
+	}
+
+	/* 打开私聊标志位 */
+	u_fnode->chat_state = 1;
+	printf("u_fnode->chat_state = %d\n",u_fnode->chat_state);
+	//发送好友名字
+	strcpy(send_text,"-");
+	strcat(send_text,u_fnode->puser->name);
+	if(send(sockfd,send_text,32,0)<0)
+		perror("send");
+
+	
+	printf("f_unode->chat_state = %d\n",f_unode->chat_state);
+	//判断对方状态进行弹窗提示		对方正在输入或聊天已就绪
+	if(f_unode->chat_state==1){
+		//弹窗消息        !out|对方正在输入...
+		strcpy(send_text,"!out|对方正在输入...");
+		if(send(u_fnode->puser->sockfd,send_text,1024,0)<0) /* 给对方发消息 */
+			perror("send");
+	}
+	
+	//判断有无属于该好友未读消息	| 私聊的未读消息需要加	@xyq:你吃了么
+	for(i=0;i<user->unread_msg_num;i++){
+		if(user->unread_msg[i][0]=='@'){
+			j=1;
+			while(user->unread_msg[i][j]!=':'){
+				unread_msg_name[j-1] = user->unread_msg[i][j];
+				j++;
+			}
+			unread_msg_name[j-1] = '\0';
+			if(strcmp(unread_msg_name,u_fnode->puser->name)==0){
+				/* 如果是该用户的消息 就存起来,一伙输出 */
+				strcpy(unread_msg[unread_num],user->unread_msg[i]);
+				unread_num++;
+
+				/* @[Warn]:存到历史记录 ✔*/
+				strcpy(u_fnode->chat_msg[u_fnode->chat_len],user->unread_msg[i]);
+				u_fnode->chat_len++;
+				
+				/* @[Warn]:清除未读消息 ✔*/
+				strcpy(user->unread_msg[i],"");
+			}
+			
+		}
+	}
+
+	//把未读数量发过去
+	sem_wait(&user->sem[0]);	/* 等待接收就绪信号 */
+	sprintf(buf,"%d",unread_num);
+	strcpy(send_text,"-");
+	strcat(send_text,buf);
+	if(send(sockfd,send_text,32,0)<0)
+		perror("send");
+
+	//根据未读数量判断输出的是未读消息还是历史记录
+	if(unread_num!=0){
+		/* 清除节点里已读的未读消息 所有被赋值位""的消息都被清除*/
+		clearUnreadMsg(user);
+		
+		/* 输出未读消息 */
+		for(i=0;i<unread_num;i++){
+			/* 等待客户端传过来的接收就绪信号 */
+			sem_wait(&user->sem[0]);
+
+			/* 发送未读消息 */
+			strcpy(send_text,"-");
+			strcat(send_text,unread_msg[i]);
+			if(send(sockfd,send_text,1024,0)<0)
+				perror("send");
+
+		}
+	}else{
+		/* 如果没有未读消息,输出历史记录的最后六条 */
+	
+		sem_wait(&user->sem[0]);	/* 等待一个接收就绪信号 */
+
+		/* 发送历史记录的数量 */
+		sprintf(buf,"%d",u_fnode->chat_len);
+		strcpy(send_text,"-");
+		strcat(send_text,buf);
+		if(send(sockfd,send_text,32,0)<0)
+		perror("send");
+
+		//判断历史记录数量
+		if((u_fnode->chat_len>0)&&(u_fnode->chat_len<7)){
+			/* 六条以内全部输出 */
+			for(i=0;i<u_fnode->chat_len;i++){
+				/* 等待客户端传过来的接收就绪信号 */
+				sem_wait(&user->sem[0]);
+
+				/* 发送历史消息 */
+				strcpy(send_text,"-");
+				strcat(send_text,u_fnode->chat_msg[i]);
+				if(send(sockfd,send_text,1024,0)<0)
+					perror("send");
+			}
+		}else if(u_fnode->chat_len>6){
+			/* 六条以外输出倒六 */
+			for(i=u_fnode->chat_len-6;i<u_fnode->chat_len;i++){
+				/* 等待客户端传过来的接收就绪信号 */
+				sem_wait(&user->sem[0]);
+
+				/* 发送历史消息 */
+				strcpy(send_text,"-");
+				strcat(send_text,u_fnode->chat_msg[i]);
+				if(send(sockfd,send_text,1024,0)<0)
+					perror("send");
+			}
+		}else{
+			/* 什么都不做继续向下 */
+		}
+	}
+
+	writeFile(USER);
+	
+	//发送当前用户名:作消息封装
+	/* 等待客户端传过来的接收就绪信号 */
+	sem_wait(&user->sem[0]);
+	strcpy(send_text,"-");
+	strcat(send_text,user->name);
+	if(send(sockfd,send_text,1024,0)<0)
+		perror("send");
+
+	while(1){
+		//等待用户输入|存入记录
+		sem_wait(&user->sem[1]);
+		strcpy(buf,user->sem_buf[1]);
+		
+		if(strcmp(buf,"exit")==0){
+			/* 退出操作 */
+			printf("exit\n");
+			break;
+			printf("test\n");
+		}
+
+		//需要处理的消息
+
+		/* 存入自己的记录 */
+		if(u_fnode->chat_len>63){
+			/* 消息过多,需要清理,删一半 */
+			for(i=0;i<u_fnode->chat_len/2;i++){
+				strcpy(u_fnode->chat_msg[i],u_fnode->chat_msg[i+32]);
+			}
+			u_fnode->chat_len == i;
+		}
+		//strcpy(u_fnode->chat_msg[u_fnode->chat_len++],buf);
+		strcpy(u_fnode->chat_msg[u_fnode->chat_len],user->name);
+		strcat(u_fnode->chat_msg[u_fnode->chat_len],":");
+		strcat(u_fnode->chat_msg[u_fnode->chat_len],buf);
+		u_fnode->chat_len++;
+		
+		/* 判断对方的状态        */
+		if(u_fnode->puser->online_state==0){
+			/* 离线:存入未读消息 */
+			strcpy(u_fnode->puser->unread_msg[u_fnode->puser->unread_msg_num],"@");
+			strcat(u_fnode->puser->unread_msg[u_fnode->puser->unread_msg_num],user->name);
+			strcat(u_fnode->puser->unread_msg[u_fnode->puser->unread_msg_num],":");
+			strcat(u_fnode->puser->unread_msg[u_fnode->puser->unread_msg_num],buf);
+			u_fnode->puser->unread_msg_num++;
+		}else if(u_fnode->puser->online_state==1&&f_unode->chat_state==0){
+			/* 在线不对话:弹窗提醒|存入未读消息 */
+			strcpy(u_fnode->puser->unread_msg[u_fnode->puser->unread_msg_num],"@");
+			strcat(u_fnode->puser->unread_msg[u_fnode->puser->unread_msg_num],user->name);
+			strcat(u_fnode->puser->unread_msg[u_fnode->puser->unread_msg_num],":");
+			strcat(u_fnode->puser->unread_msg[u_fnode->puser->unread_msg_num],buf);
+			u_fnode->puser->unread_msg_num++;
+
+			/* 发送弹窗类消息 格式:			!out|许玉泉给你发了一条私信 */
+			strcpy(send_text,"!out|");
+			strcat(send_text,user->name);
+			strcat(send_text,"给你发了一条私信\0");
+			if(send(u_fnode->puser->sockfd,send_text,1024,0)<0) /* 给被下线的用户发送验证消息 */
+				perror("send");
+		}else{
+			/* 在线在对话:封装发送给对方客户端线程|存入已读消息@[Warn]:存入对方已读 */
+			strcpy(send_text,"@");
+			strcat(send_text,user->name);
+			strcat(send_text,":");
+			strcat(send_text,buf);
+			if(send(u_fnode->puser->sockfd,send_text,1024,0)<0) /* 给被下线的用户发送验证消息 */
+				perror("send");
+
+			/* 存入对方的记录 */
+			if(f_unode->chat_len>63){
+				/* 消息过多,需要清理,删一半 */
+				for(i=0;i<f_unode->chat_len/2;i++){
+					strcpy(f_unode->chat_msg[i],f_unode->chat_msg[i+32]);
+				}
+				f_unode->chat_len == i;
+			}
+			strcpy(f_unode->chat_msg[f_unode->chat_len],user->name);
+			strcat(f_unode->chat_msg[f_unode->chat_len],":");
+			strcat(f_unode->chat_msg[f_unode->chat_len],buf);
+			f_unode->chat_len++;
+		}
+
+		if(send(sockfd,"-over_sand",1024,0)<0) /* 发送处理完成等待就绪的信号 */
+			perror("send");
+		
+	}
+
+	printf("here\n");
+	u_fnode->chat_state = 0;	
+	writeFile(USER);
+	printf("写入完成\n");
+	if(send(sockfd,"-exit_priChat",1024,0)<0) /* 发送处理完成等待就绪的信号 */
+		perror("send");
+	return;
+}
 
 /*
 ****************************************************************************************
@@ -219,8 +499,8 @@ void addFriend(struct User * user)
 * @Desc  : 发送验证数量,逐个发送验证消息
 * @return: 无返回值
 * @Note  : 
-！！！注意：由于客户端recv和sem_wait的处理速度不匹配所以下一次发送需要等到就绪信号�
-�
+！！！注意：由于客户端recv和sem_wait的处理速度不匹配所以下一次发送需要等到就绪信号�
+�
 ****************************************************************************************
 */
 void listAddMsg(struct User * user)
@@ -230,6 +510,8 @@ void listAddMsg(struct User * user)
 	char send_text[1024];
 	int sockfd = user->sockfd;
 
+	sem_wait(&user->sem[0]);
+	
 	sprintf(buf,"%d",user->add_num);
 	strcpy(send_text,"-");
 	strcat(send_text,buf);
@@ -271,6 +553,10 @@ void disposeAddMsg(struct User * user)
 	int i,index=0;
 	int sockfd = user->sockfd;
 	char buf[1024],send_text[1024];
+
+	/* 发送接收就绪信号 */
+	if(send(sockfd,"-disposeAddMsg_start",1024,0)<0)
+		perror("send");
 	
 	//等待操作结果
 	sem_wait(&user->sem[0]);
@@ -279,12 +565,15 @@ void disposeAddMsg(struct User * user)
 	/* 索引转化 */
 	index = atoi(buf); /* 获取的是从1开始罗列的选项 */
 	index--;	/* 因为数据索引从0开始 */
-	if((index<0)||(index>=user->add_num)||(strlen(buf)>2)){
+	
+	if(strcmp(buf,"exit")==0){
+		return;
+	}else if((index<0)||(index>=user->add_num)||(strlen(buf)>2)){
 		//printf("输入有误\n");
 		if(send(sockfd,"-error_input",1024,0)<0)
 			perror("send");
 	}else{
-		DPRINTF("[ \033[36Info\033[0m ]处理的索引是:%d 处理的用户:%s 处理的文本:%s\n",index,user->add_name[index],user->add_msg[index]);
+		DPRINTF("[ \033[36mInfo\033[0m ]处理的索引是:%d 处理的用户:%s 处理的文本:%s\n",index,user->add_name[index],user->add_msg[index]);
 
 		/* 判断消息类型 */
 		if(user->add_msg[index][0]!='-'){
@@ -292,18 +581,18 @@ void disposeAddMsg(struct User * user)
 			/* 直接发送弹窗消息 */
 			strcpy(send_text,"!");
 			strcat(send_text,"addRequire|");
-			strcat(send_text,user->add_name[i]);
+			strcat(send_text,user->add_name[index]);
 			if(send(sockfd,send_text,1024,0)<0)
-			perror("send");
+				perror("send");
 		}else{
 			/* 通知类消息 */
 			/* 发送通知弹窗消息 */
 			strcpy(send_text,"!");
 			strcat(send_text,"out|");
-			strcat(send_text,user->add_name[i]);
-			strcat(send_text,user->add_msg[i]);
+			strcat(send_text,user->add_name[index]);
+			strcat(send_text,user->add_msg[index]);
 			if(send(sockfd,send_text,1024,0)<0)
-			perror("send");
+				perror("send");
 		}
 
 		
@@ -366,7 +655,7 @@ void listFriends(struct User * user)
 		}
 		if(send(sockfd,send_text,1024,0)<0)
 			perror("send");
-		printf("发送的文本是:%s\n",send_text);
+		//printf("发送的文本是:%s\n",send_text);
 	}
 	sem_wait(&user->sem[0]);	/* 等待退出信号 */
 }
@@ -380,16 +669,17 @@ void listFriends(struct User * user)
 */
 void offLineUser(int sockfd,char inet_ip[])
 {
-	char buf[1024];
+	char buf[46];
 	char send_text[1024];
 	struct User * user;
 	struct Buffer * buffer;
-	user = (struct User *)malloc(sizeof(struct User));
 	buffer = (struct Buffer *)malloc(sizeof(struct Buffer));
-	
-	while(1){
-		strcpy(buf,myRecv(sockfd)); /* 等待执行表单的返回结果 */
 
+	printf("sizeof(user) = %ld\n",sizeof(struct User));
+	while(1){
+		//printf("wait recv\n");
+		strcpy(buf,myRecv(sockfd)); /* 等待执行表单的返回结果 */
+		//printf("Recv_buf:%s\n",buf);
 		if(strcmp(buf,"0")==0){	 /* 存入数据成功 */
 			//读表单数据函数
 			readBuffer(NAMEFORMBUF,1,"_form",(void *)buffer,inet_ip);
@@ -416,7 +706,9 @@ void offLineUser(int sockfd,char inet_ip[])
 					perror("send");
 				continue;
 			}
-			
+			//printf("初始前\n");
+			user = (struct User *)malloc(sizeof(struct User));
+			//printf("初始后\n");
 			//判断数据			
 			user = reviseUserNode(USERNAME,buffer->name,0);
 			if(user==NULL){
@@ -540,11 +832,12 @@ void closeServer(int sockfd)
 ****************************************************************************************
 *                                 	 删除指定用户
 * @Desc  :
-* @return: 返回值1为成功，0为失败
+* @return: 无返回值
 ****************************************************************************************
 */
 void rmUser(int sockfd,char inet_ip[])
 {
+	int res=FAILD;
 	char buf[1024];
 	char send_text[1024];
 	struct User * user;
@@ -583,21 +876,16 @@ void rmUser(int sockfd,char inet_ip[])
 			}
 			
 			//判断数据			
-			user = delUserNode(USERNAME,buffer->name,0);
-			if(user==NULL){
+			res = delUserNode(USERNAME,buffer->name,0);
+			if(res==FAILD){
 				//告知用户未注册
 				if(send(sockfd,"name",32,0)<0)
 					perror("send");
 				continue;
 			}else{
-				//存在
-				//保存修改结果
 				writeFile(USER);
-				//printf("成功写入\n");
-				//告知成功
 				if(send(sockfd,"success",32,0)<0)
 					perror("send");
-				//printf("发送成功成功\n");
 				return;
 			}
 		}else if(strcmp(buf,"recv_error")==0){ /* 如果管理员退出 */
@@ -608,7 +896,4 @@ void rmUser(int sockfd,char inet_ip[])
 		}
 	}
 	return;
-	
-		
 }
-
