@@ -44,7 +44,7 @@ struct Buffer{
 struct Friend{
 	struct User* puser; /* 指向具体的好友 */
 	/*@[Warn]:用户注销等相关操作需要销毁所有相关好友的好友节点*/
-	
+	bool chat_state; /* 和该好友的聊天标志 [0]:关闭 [1]:打开*/
 	int chat_len;	/* 聊天记录的数量 */
 	char chat_msg[64][128]; /*与该好友的聊天记录*/
 };
@@ -149,6 +149,9 @@ typedef struct LnodeR{
 LinklistU U;	//名媛链表头节点 
 LinklistR R;	//红包链表头节点 
 
+struct User * init_user_link;
+
+
 int cntUNode(void);
 int modUserNode(struct User);
 int delUserNode(int,char[],int);
@@ -156,6 +159,7 @@ int delUserNode(int,char[],int);
 void initLink(void);
 void listLinklistU(int);
 void addNode(int,struct User,struct Redp);
+void clearUnreadMsg(struct User * user);
 
 struct User grepUserNode(int,char[],int);
 struct User * reviseUserNode(int,char[],int);

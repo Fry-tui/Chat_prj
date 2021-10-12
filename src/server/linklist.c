@@ -252,7 +252,7 @@ void listLinklistU(int sockfd)
 	DPRINTF("[ \033[34mInfo\033[0m ] 输出就绪\n");
 	cnt = cntUNode();
 	sprintf(buf,"%d",cnt);
-	global_command = (char *)malloc(cnt*sizeof(struct User));
+	global_command = (char *)calloc(cnt+1,sizeof(struct User)/2);
 	/* 多选:--multiple 可编辑:--editable */
 	strcpy(global_command,"zenity --list --print-column=all --text=用户总数:");
 	strcat(global_command,buf); /* 用户总数 */
@@ -341,6 +341,9 @@ void listLinklistU(int sockfd)
 	res = system(global_command);
 	sem_post(&global_sem_cmd);
 
+	free(global_command);
+	//global_command = (char *)realloc(global_command,0);
+	
 	if(res==0){
 		if(send(sockfd,"LIST_SUCCESS",32,0)<0)
 			perror("send");
@@ -348,7 +351,7 @@ void listLinklistU(int sockfd)
 		if(send(sockfd,"LIST_FAILD",32,0)<0)
 			perror("send");
 	}
-	
+	//printf("结束罗列\n");
 	return;
 }
 
@@ -372,4 +375,35 @@ int cntUNode(void)
 	}
 	return cnt;
 }
+
+/****************************************************************************************
+*                                清除字符串数组里的空字符
+*
+* @Desc  : 遍历每一个元素,如有空值查找下一个有效值,进行替换,直到有效值全部替换完毕
+* @Para  : 指向链表中的具体节点 
+* @return: 无返回值
+****************************************************************************************
+*/
+void clearUnreadMsg(struct User * user)
+{
+	int i,j,k;
+	for(i=0;i<user->unread_msg_num;i++){
+		if(strcmp(user->unread_msg[i],"")==0){
+			//寻找下一个有用的节点
+			for(k=i+1;k<user->unread_msg_num;k++){
+				if(strcmp(user->unread_msg[k],"")!=0)
+					break;
+			}
+			if(k==user->unread_msg_num){
+				user->unread_msg_num = i;
+				return; 	/* 全部清除完毕 */
+			}
+
+			strcpy(user->unread_msg[i],user->unread_msg[k]);
+			strcmp(user->unread_msg[k],"");
+		}
+	}
+	return; /* 无需清理 */
+}
+
 

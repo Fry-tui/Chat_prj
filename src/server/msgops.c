@@ -213,20 +213,23 @@ void pthread_Recv(struct User *user)
 		if(buf[0]=='-'){		/* sem[0]:当前客户端发来的普通消息 */
 			strcpy(user->sem_buf[0],msg);
 			sem_post(&user->sem[0]);
+		}else if(buf[0]=='@'){		/* sem[1]:收到的私聊消息格式 : @hello           */ 
+			strcpy(user->sem_buf[1],msg);	/* 存储等待处理 */
+			sem_post(&user->sem[1]);
 		}else if(buf[0]=='a'){		/* sem[无需sem]:当前客户端处理完添*加后的结果(弹窗操作结果) */
 			/* 实例 msg = 0|许玉泉  		操作结果|请求对象 */
-			printf("msg = %s\n",msg);
+			printf("pthread_Recv():[a] msg = %s\n",msg);
 			i=0;
 			while(msg[i]!='|')
 				buf[i] = msg[i++];
 			buf[i++]='\0'; /* 取得的是操作结果 res [0|256] */
-			printf("buf = %s\n",buf);
+			printf("pthread_Recv():[a] buf = %s\n",buf);
 			j=0;
 			while(msg[i]!='\0')
 				name[j++] = msg[i++];
 			name[j] = '\0';
-			printf("name = %s\n",name);
-
+			printf("pthread_Recv():[a] name = %s\n",name);
+			fuser = (struct User *)malloc(sizeof(struct User));
 			fuser = reviseUserNode(USERNAME, name, 0); /* 根据用户名获取用户节点 */
 			if(fuser==NULL){
 				/* 用户注销了 */
@@ -234,34 +237,46 @@ void pthread_Recv(struct User *user)
 				strcpy(send_text,"!out|用户:");
 				strcat(send_text,name);
 				strcat(send_text,"已注销,无法加为好友!");
+				
+				printf("pthread_Recv():[a] 未找到用户\n");
+				
 				if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送验证消息 */
 					perror("send");
 				continue;
 			}
 			/* 有没有可能同意添加的时候已经是好友了 */
-			for(index=0;index<user->friend_num;i++){
+			for(index=0;index < user->friend_num;i++){
 				if(strcmp(user->friends[index].puser->name,name)==0)
 					break;
 			}
+			printf("pthread_Recv():[a] inde=%d user->friend_num=%d\n",index,user->friend_num);
 			//如果已是好友 index<user->friend_num
 			if(strcmp(buf,"0")==0){
 				/* 同意添加 */
 				//判断是不是已是好友
+				
+				printf("pthread_Recv():[a] 同意添加\n");
 				
 				if(index < user->friend_num){
 					/* 是好友 */
 					strcpy(send_text,"!out|用户:");
 					strcat(send_text,name);
 					strcat(send_text,"已经是你好友了,快去聊天吧!");
+					
+					printf("pthread_Recv():[a] 重复添加\n");
+					
 					if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送消息 */
 						perror("send");
-					break;
+					continue;
 				}
-				
+
+				printf("pthread_Recv():[a] 开始互加处理\n");
 				fuser->friends[fuser->friend_num].puser = user;
 				fuser->friend_num++;
 				user->friends[user->friend_num].puser = fuser;
 				user->friend_num++;
+				
+				printf("pthread_Recv():[a] 处理完成,准备弹窗\n");
 				//弹窗类消息	    
 				if(fuser->online_state==1){
 					//"!out|用户:田恩竹已通过好友验证,快来聊天吧!"

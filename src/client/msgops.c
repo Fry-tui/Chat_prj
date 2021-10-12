@@ -116,6 +116,20 @@ void pthread_Recv(void)
 		}else if(buf[0]=='!'){
 			//弹窗消息
 			zenityOps(msg);
+		}else if(buf[0]=='@'){
+			//私聊消息:左对齐打印到显示屏
+			
+			msg_send.choice=INULLMENU;
+
+			strcpy(msg_send.text,"\033[32m");
+			myMsgSend(msg_send);
+
+			alignLeft(msg);
+
+			strcpy(msg_send.text,"\033[0m");
+			myMsgSend(msg_send);
+
+			middleText(" ");	/* 换行 */
 		}else{
 			//未识别消息
 			strcpy(command,"zenity --warning --no-wrap --title=警报 --text=接收到非法消息:");

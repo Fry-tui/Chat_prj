@@ -22,7 +22,7 @@
 
 void myMsgRecv(MsgP precv_msg)
 {
-	if(msgrcv(msg_id,(void *)precv_msg,sizeof(struct Msg),0,0)==-1){
+	if(msgrcv(msg_id,(void *)precv_msg,sizeof(struct Msg),0,MSG_NOERROR)==-1){
 		perror("[ \033[31mError\033[0m ] msgrecv.c/myMsgRecv() : msgrcv");
 		msgctl(msg_id,IPC_RMID,0); 
 		exit(EXIT_FAILURE); 

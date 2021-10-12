@@ -52,6 +52,7 @@ int main(int argc, char * argv [ ])
 	readFile();
 
 	sem_init(&global_sem_cmd,0,1);	/* 初始值为1 */
+	//global_command = (char *)malloc(sizeof(struct User)); /* 初始化:global_command */
 	
 	printf("%s","\033[1H\033[2J"); /*清屏输出*/
     printf("***********************************\033[44m服务器启动\033[0m***********************************\n"); 
