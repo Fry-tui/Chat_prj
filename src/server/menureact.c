@@ -114,11 +114,13 @@ void reactUserMenu(struct User *user)
 		}else if(strcmp(buf,"2")==0){
 			priChat(user);
 		}else if(strcmp(buf,"3")==0){
-			//pubChat();
+			createGroup(user);
 		}else if(strcmp(buf,"4")==0){
-			//tranAccount();
-		}else if(strcmp(buf,"5")==0){	
-			//topUp();
+			listGroups(user);
+			joinGroup(user);
+		}else if(strcmp(buf,"5")==0){
+			listMyGroups(user);
+			groupChat(user);
 		}else if(strcmp(buf,"6")==0){
 			//sendRedp();
 		}else if(strcmp(buf,"7")==0){
@@ -183,10 +185,10 @@ void reactRootMenu(int sockfd,char inet_ip[])
 	int detime = 10000000;
 	
 	while(1){
-		printf("re recv\n");
+		//printf("re recv\n");
 		//接收选项
 		strcpy(buf,myRecv(sockfd));
-		printf("recive over!%s\n",buf);
+		//printf("recive over!%s\n",buf);
 		//判断选项
 		if(strcmp(buf,"1")==0){
 			rmUser(sockfd,inet_ip);
@@ -198,6 +200,10 @@ void reactRootMenu(int sockfd,char inet_ip[])
 		}else if(strcmp(buf,"4")==0){
 			//bcAnnouncement();
 		}else if(strcmp(buf,"5")==0){
+			listLinklistG();
+			if(send(sockfd,"end_list",32,0)<0)
+				perror("send");
+		}else if(strcmp(buf,"6")==0){
 			closeServer(sockfd);
 		}else if(strcmp(buf,"exit")==0){
 			return;

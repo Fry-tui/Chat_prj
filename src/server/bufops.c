@@ -139,7 +139,7 @@ void readBuffer(int type,int cnt,char suffix[],struct Buffer *buffer,char inet_i
 	}else if(type==NAMEFORMBUF){		/* 添加好友表单数据获取 */
 		strcpy(buffer->name,out[0]);
 		
-		DPRINTF("[ \033[34mInfo\033[0m ] NAME_BUF  下线:\033[34m%s\033[0m\n",buffer->name);
+		DPRINTF("[ \033[34mInfo\033[0m ] NAME_BUF  名字:\033[34m%s\033[0m\n",buffer->name);
 		//使其有效
 		buffer->avail_flag = LEGAL;
 		return;

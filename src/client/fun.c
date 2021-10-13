@@ -127,6 +127,7 @@ void priChat(void)
 			}
 		}else{
 			middleText("暂无聊天记录");
+			middleText(" ");
 		}
 	}
 
@@ -163,7 +164,7 @@ void priChat(void)
 		/* 发给自己的服务器,进行存储,同时也转发给对方 */
 		strcpy(send_buf,"@");
 		strcat(send_buf,buf);
-		if(send(curSockfd,send_buf,128,0)<0)
+		if(send(curSockfd,send_buf,1024,0)<0)
 			perror("send_msg");
 
 		/* 等待处理结果|等待下一次处理就绪信号 */
@@ -180,43 +181,186 @@ void priChat(void)
 
 /*
 ****************************************************************************************
-*                                  修改密码
-* @Desc  : 修改用户密码
-* @return: 返回操作结果
+*                                 			 群聊
+* @Desc  : @xyq:somethingNeedYouKnow
+* @return: 
 ****************************************************************************************
 */
-int setPwd(void)
+void groupChat(void)
 {
-    int res;
-    char buf[1024],send_buf[1024];;
+	int i,res,num;
+	char name[32];
     char command[1024];
+	char group_name[32];
+    char buf[1024],send_buf[1024];;
     Msg msg_send = {1,"none"};
 
     msg_send.choice=INULLMENU;
+
+	//输入群名
+	while(1){
+        printf("请输入:");
+		scanf("%s",buf);
+
+		strcpy(send_buf,"-");
+		strcat(send_buf,buf);
+		if(send(curSockfd,send_buf,1024,0)<0)
+			perror("send");
+
+		sem_wait(&global_sem);
+		strcpy(buf,global_sem_buf);
+
+		if(strcmp(buf,"exit")==0){
+			/* 输入退出 */
+			DPRINTF("[ \033[34mInfo\033[0m ] 退出群聊程序");
+			if(send(curSockfd,"-exit_groupChat",1024,0)<0)
+				perror("send");
+			return;
+		}else if(strcmp(buf,"error_input")==0){
+			/* 非输入群名 */
+			printf("\t\033[31X\033[0m:输入有误\n");
+			continue;
+		}else{
+			/* 选择正确 */
+			break;
+		}
+    }
+
+	/* 发送同步信号 */
+	if(send(curSockfd,"-chat_ready",1024,0)<0)
+		perror("send");
+	
+	//开启群聊
+
+	//接收群聊的名字
+	sem_wait(&global_sem);
+	strcpy(group_name,global_sem_buf);
+
+	//刷新显示屏
+	msg_send.choice=INULLMENU;
 	strcpy(msg_send.text,"\033[1H\033[2J");
 	myMsgSend(msg_send);
-	strcpy(msg_send.text,"\t-----------修改密码-----------\n");
+	strcpy(msg_send.text," __________________________________________\n");
+	myMsgSend(msg_send);
+	middleText(group_name);
+	strcpy(msg_send.text,"|^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|\n");
 	myMsgSend(msg_send);
 
-    while(1){
-        strcpy(command,"zenity --forms --text=修改密码 --add-password=原密码 --add-password=新密码 > ./data/ipbuffer/");
+	//接收消息数量
+	if(send(curSockfd,"-num_ready",32,0)<0)		/* 发送接收就绪信号 */
+		perror("send");
+	sem_wait(&global_sem);
+	strcpy(buf,global_sem_buf);
+
+	num=atoi(buf);	/* 转化字符串 */
+
+	if(num==0){
+		middleText("暂无聊天记录");
+		middleText(" ");
+	}else{
+		for(i=0;i<num;i++){
+			if(send(curSockfd,"-msg_ready",32,0)<0)		/* 发送接收就绪信号 */
+					perror("send");
+				sem_wait(&global_sem);
+				strcpy(buf,global_sem_buf);
+				alignLeft(buf);								/* 靠左对齐打印文本 */
+				middleText(" ");							/* 换行 */
+		}
+	}
+
+	if(send(curSockfd,"-name_ready",32,0)<0)		/* 发送接收就绪信号 */
+		perror("send");
+	/* 获取当前用户的名字以便封装 */
+	sem_wait(&global_sem);
+	strcpy(name,global_sem_buf);
+
+	/* 等待用户输入->服务器给所有在线并打开群聊的人干过去|写入本地 */
+	while(1){
+		printf("%s","\033[1H\033[2J");
+		printf(":");
+		scanf("%s",buf);
+
+		if(strCnlen(buf)>99){
+			printf("\t超出字数限制\n");
+			sleep(1);
+			continue;
+		}
+
+		/* 作判断 */
+		if(strcmp(buf,"exit")==0){
+			if(send(curSockfd,"$exit",32,0)<0)		/* 发送接收就绪信号 */
+				perror("send");
+			break;
+		}
+
+		/* 发到显示屏上 */
+		strcpy(msg_send.text,name);
+		strcat(msg_send.text,":");
+		strcat(msg_send.text,buf);
+		alignLeft(msg_send.text);
+
+		/* 发给自己的服务器,进行存储,同时也转发给对方 */
+		strcpy(send_buf,"$");
+		strcat(send_buf,buf);
+		if(send(curSockfd,send_buf,1024,0)<0)
+			perror("send_msg");
+
+		/* 等待处理结果|等待下一次处理就绪信号 */
+		sem_wait(&global_sem);
+		middleText(" ");
+		printf("[ \033[33m✔\033[0m ]\n");
+		sleep(1);
+	}
+
+	sem_wait(&global_sem);	/* 等待退出信号 */
+
+	return;
+}
+
+/*
+****************************************************************************************
+*                                  		创建群
+* @Desc  : 创建一个群
+* @return: 返回操作结果
+****************************************************************************************
+*/
+void createGroup(void)
+{	
+	int res;
+	char command[1024];
+    char buf[1024],send_buf[1024];
+    Msg msg_send = {1,"none"};
+
+	/* 刷新显示屏 */
+    msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,"\033[1H\033[2J");
+	myMsgSend(msg_send);
+	strcpy(msg_send.text,"\t-----------创建群聊-----------\n");
+	myMsgSend(msg_send);
+
+	/* 等待一个同步信号 */
+	sem_wait(&global_sem);
+
+	//输入群聊名字	form
+	while(1){
+		/* 打开表单弹窗 */
+		strcpy(command,"zenity --forms --text=创建群聊 --add-entry=群名 > ./data/ipbuffer/");
 		strcat(command,inet_ip_text);
 		strcat(command,"_form");
 		res = system(command); /* 0:成功 256:退出 */
-
-        sprintf(buf,"%d",res);
+		/* 发送表单处理结果 */
+		sprintf(buf,"%d",res);
 		strcpy(send_buf,"-");
 		strcat(send_buf,buf);
 		if(send(curSockfd,send_buf,32,0)<0)
 			perror("send");
-
-        if(res == 0){ /*成功 */
+		
+		if(res==0){
 			//等待服务器读取数据结果
 			sem_wait(&global_sem);
 			strcpy(buf,global_sem_buf);
-			
 			if(strcmp(buf,"ILLEGAL")==0){	/* 没有读到消息 */
-				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c setPwd():表单数据缓冲失败,即将终止操作\n");
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c createGroup():表单数据缓冲失败,即将终止创建群聊\n");
 				myMsgSend(msg_send);
 				sleep(1);
 				return;
@@ -224,56 +368,231 @@ int setPwd(void)
 				/*长度违法*/
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
 				myMsgSend(msg_send);
-				system("zenity --error --text=\"输入数据过长\" --no-wrap --title=修改密码");
+				system("zenity --error --text=输入数据过长 --no-wrap --title=创建群聊");
 				continue;
 			}
 			
+			if(send(curSockfd,"-out_ready",32,0)<0)
+				perror("send");
+
 			//等待服务器读取判断结果
 			sem_wait(&global_sem);
 			strcpy(buf,global_sem_buf);
-			if(strcmp(buf,"old_error")==0){	/* 接收到old_error代表原密码有误 */
-				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 原密码 \033[31mX\033[0m\n");
+				
+			if(strcmp(buf,"name")==0){ /* 接收到name代表已有这个群 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 群名 \033[31m不可用\033[0m\n");
 				myMsgSend(msg_send);
-				system("zenity --error --text=\"原密码有误\" --no-wrap --title=修改密码");
-				continue;
-			}else if(strcmp(buf,"same")==0){ /* 接收到same代表新旧密码相同 */
-				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 新密码 \033[31mX\033[0m\n");
-				myMsgSend(msg_send);
-				system("zenity --error --text=\"新密码不得与原密码相同\" --no-wrap --title=修改密码");
+				system("zenity --error --text=群名不可用 --no-wrap --title=创建群聊");
 				continue;
 			}else if(strcmp(buf,"NULL")==0){ /* 有表单输入为空 */
 				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
 				myMsgSend(msg_send);
-				system("zenity --error --text=\"输入框不能为空\" --no-wrap --title=修改密码");
+				system("zenity --error --text=\"输入框不能为空\" --no-wrap --title=创建群聊");
 				continue;
-			}else if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
-				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 原密码 \033[32m✔\033[0m\n");
-				myMsgSend(msg_send);
-				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 新密码 \033[32m✔\033[0m\n");
-				myMsgSend(msg_send);
-                system("zenity --error --text=\"修改成功\" --no-wrap --title=修改密码");
-                
+			}else if(strcmp(buf,"none_group")==0){ /* 接收到success代表群名可用成功 */
 				break;
-			}else{ /*代表接收到了其他send,报错终止注册退出*/
-				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c setPwd():无法识别");
+			}else{ /*代表接收到了其他send,报错终止登入退出*/
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c createGroup():无法识别");
 				strcat(msg_send.text,buf);
-				strcat(msg_send.text,",即将终止修改操作\n");
+				strcat(msg_send.text,",即将终止创建群聊操作\n");
 				myMsgSend(msg_send);
-				//同时告诉服务器退出响应注册函数
+				//同时告诉服务器
 				if(send(curSockfd,"-recv_error",32,0)<0)
 					perror("send");
-				return FAILD;
+				return;
 			}
-		}else{
-			//失败:256
-			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 修改操作 \033[31m已被中断,exiting..\033[0m\n");
+		}else{ /* 窗口点击取消或是关闭 */
+			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 创建群聊 \033[31m已被用户中断,exiting..\033[0m\n");
 			myMsgSend(msg_send);
-			sleep(1);
-			return FAILD;
-		}	
-        
+			if(send(curSockfd,"-exit_createGroup",32,0)<0)
+				perror("send");
+			return;
+		}
+	}
+
+	/* 发送同步信号 */
+	if(send(curSockfd,"-out_ready",32,0)<0)
+		perror("send");
+
+	//获取群聊权限	question
+	res = system("zenity --question --title=权限 --ok-label=打开 --cancel-label=关闭 --text=进群是否需要开启验证");
+
+	sprintf(buf,"%d",res);
+	strcpy(send_buf,"-");
+	strcat(send_buf,buf);
+	if(send(curSockfd,send_buf,32,0)<0)
+		perror("send");
+
+	//等待退出信号
+	sem_wait(&global_sem);
+	system("zenity --info --text=创建成功 --no-wrap --title=群聊功能");
+	return;
+}
+
+/*
+****************************************************************************************
+*                                  罗列群聊名称
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
+void listGroups(void)
+{
+	int i=0,groups_num;
+	char buf[1024],index[8];
+	Msg msg_send = {1,"none"};
+	
+	/* 刷新显示屏 */
+	msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,"\033[1H\033[2J");
+	myMsgSend(msg_send);
+	strcpy(msg_send.text,"\t-----------群组列表-----------\n");
+	myMsgSend(msg_send);
+
+	/* 接收群组数量 */
+	sem_wait(&global_sem);
+	strcpy(buf,global_sem_buf);
+	groups_num = atoi(buf);
+
+	for(i=0;i<groups_num;i++){
+		if(send(curSockfd,"-group_name",32,0)<0)
+			perror("send");
+		sem_wait(&global_sem);
+		strcpy(buf,global_sem_buf);
+		strcpy(msg_send.text,"\t");
+		sprintf(index,"%d",i+1);
+		strcat(msg_send.text,index);
+		strcat(msg_send.text,". ");
+		strcat(msg_send.text,"\033[36m");
+		strcat(msg_send.text,buf);
+		strcat(msg_send.text,"\033[0m");
+		strcat(msg_send.text,"\n\0");
+		myMsgSend(msg_send);
+	}
+	strcpy(msg_send.text,"\n\texit:退出\n");
+	myMsgSend(msg_send);
+
+	/* 发送退出信号 */
+	if(send(curSockfd,"-exit_listGroups",32,0)<0)
+		perror("send");
+	
+	return;
+}
+
+/*
+****************************************************************************************
+*                                  罗列自己的群
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
+void listMyGroups(void)
+{
+	int i=0,groups_num;
+	char buf[1024],index[8];
+	Msg msg_send = {1,"none"};
+	
+	/* 刷新显示屏 */
+	msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,"\033[1H\033[2J");
+	myMsgSend(msg_send);
+	strcpy(msg_send.text,"\t-----------群组列表-----------\n");
+	myMsgSend(msg_send);
+
+	/* 接收群组数量 */
+	sem_wait(&global_sem);
+	strcpy(buf,global_sem_buf);
+	groups_num = atoi(buf);
+
+	for(i=0;i<groups_num;i++){
+		if(send(curSockfd,"-group_name",32,0)<0)
+			perror("send");
+		sem_wait(&global_sem);
+		strcpy(buf,global_sem_buf);
+		strcpy(msg_send.text,"\t");
+		sprintf(index,"%d",i+1);
+		strcat(msg_send.text,index);
+		strcat(msg_send.text,". ");
+		strcat(msg_send.text,"\033[36m");
+		strcat(msg_send.text,buf);
+		strcat(msg_send.text,"\033[0m");
+		strcat(msg_send.text,"\n\0");
+		myMsgSend(msg_send);
+	}
+	strcpy(msg_send.text,"\n\texit:退出\n");
+	myMsgSend(msg_send);
+
+	/* 发送退出信号 */
+	if(send(curSockfd,"-exit_listGroups",32,0)<0)
+		perror("send");
+	
+	return;
+}
+
+/*
+****************************************************************************************
+*                                  输入需要加入群聊的名字等待判断
+* @Desc  : 若群里无需验证直接加入,需验证(群主在线->弹窗)|(群主不在线->未读)
+* @return: 无返回值
+****************************************************************************************
+*/
+void joinGroup(void)
+{
+	int res;
+    char buf[1024],send_buf[1024];;
+    char command[1024];
+    Msg msg_send = {1,"none"};
+
+    msg_send.choice=INULLMENU;
+
+	//输入群名
+	while(1){
+        printf("请输入:");
+		scanf("%s",buf);
+
+		strcpy(send_buf,"-");
+		strcat(send_buf,buf);
+		if(send(curSockfd,send_buf,1024,0)<0)
+			perror("send");
+
+		sem_wait(&global_sem);
+		strcpy(buf,global_sem_buf);
+
+		if(strcmp(buf,"exit")==0){
+			/* 输入退出 */
+			DPRINTF("[ \033[34mInfo\033[0m ] 退出加群程序");
+			if(send(curSockfd,"-exit_joinGroup",1024,0)<0)
+				perror("send");
+			return;
+		}else if(strcmp(buf,"error_input")==0){
+			/* 非输入群名 */
+			printf("\t\033[31X\033[0m:输入有误\n");
+			continue;
+		}else{
+			/* 选择正确 */
+			break;
+		}
     }
-    return SUCCESS;
+
+	/* 发送同步信号 */
+	if(send(curSockfd,"-join_ready",1024,0)<0)
+		perror("send");
+
+	/* 等待服务器的处理 */
+	sem_wait(&global_sem);
+	strcpy(buf,global_sem_buf);
+
+	if(strcmp(buf,"mem_exist")==0){
+		system("zenity --info --text=已是群聊成员,无需验证 --no-wrap --title=加入群聊");
+	}else if(strcmp(buf,"require_over")==0){
+		system("zenity --info --text=需要验证,请求已发送 --no-wrap --title=加入群聊");
+	}else{
+		system("zenity --info --text=无需验证,添加成功 --no-wrap --title=加入群聊");
+	}
+
+	if(send(curSockfd,"-end_join",1024,0)<0)
+		perror("send");
+	return;
 }
 
 /*
@@ -566,6 +885,104 @@ void listFriends(void)
 	if(send(curSockfd,"-exit_listFriends",32,0)<0)
 		perror("send");
 	return;
+}
+
+/*
+****************************************************************************************
+*                                  修改密码
+* @Desc  : 修改用户密码
+* @return: 返回操作结果
+****************************************************************************************
+*/
+int setPwd(void)
+{
+    int res;
+    char buf[1024],send_buf[1024];;
+    char command[1024];
+    Msg msg_send = {1,"none"};
+
+    msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,"\033[1H\033[2J");
+	myMsgSend(msg_send);
+	strcpy(msg_send.text,"\t-----------修改密码-----------\n");
+	myMsgSend(msg_send);
+
+    while(1){
+        strcpy(command,"zenity --forms --text=修改密码 --add-password=原密码 --add-password=新密码 > ./data/ipbuffer/");
+		strcat(command,inet_ip_text);
+		strcat(command,"_form");
+		res = system(command); /* 0:成功 256:退出 */
+
+        sprintf(buf,"%d",res);
+		strcpy(send_buf,"-");
+		strcat(send_buf,buf);
+		if(send(curSockfd,send_buf,32,0)<0)
+			perror("send");
+
+        if(res == 0){ /*成功 */
+			//等待服务器读取数据结果
+			sem_wait(&global_sem);
+			strcpy(buf,global_sem_buf);
+			
+			if(strcmp(buf,"ILLEGAL")==0){	/* 没有读到消息 */
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c setPwd():表单数据缓冲失败,即将终止操作\n");
+				myMsgSend(msg_send);
+				sleep(1);
+				return;
+			}else if(strcmp(buf,"LENILLEGAL")==0){ 
+				/*长度违法*/
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"输入数据过长\" --no-wrap --title=修改密码");
+				continue;
+			}
+			
+			//等待服务器读取判断结果
+			sem_wait(&global_sem);
+			strcpy(buf,global_sem_buf);
+			if(strcmp(buf,"old_error")==0){	/* 接收到old_error代表原密码有误 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 原密码 \033[31mX\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"原密码有误\" --no-wrap --title=修改密码");
+				continue;
+			}else if(strcmp(buf,"same")==0){ /* 接收到same代表新旧密码相同 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 新密码 \033[31mX\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"新密码不得与原密码相同\" --no-wrap --title=修改密码");
+				continue;
+			}else if(strcmp(buf,"NULL")==0){ /* 有表单输入为空 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 输入 \033[31mX\033[0m\n");
+				myMsgSend(msg_send);
+				system("zenity --error --text=\"输入框不能为空\" --no-wrap --title=修改密码");
+				continue;
+			}else if(strcmp(buf,"success")==0){ /* 接收到success代表成功 */
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 原密码 \033[32m✔\033[0m\n");
+				myMsgSend(msg_send);
+				strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 新密码 \033[32m✔\033[0m\n");
+				myMsgSend(msg_send);
+                system("zenity --error --text=\"修改成功\" --no-wrap --title=修改密码");
+                
+				break;
+			}else{ /*代表接收到了其他send,报错终止注册退出*/
+				strcpy(msg_send.text,"\033[31m[Error]\033[0m fun.c setPwd():无法识别");
+				strcat(msg_send.text,buf);
+				strcat(msg_send.text,",即将终止修改操作\n");
+				myMsgSend(msg_send);
+				//同时告诉服务器退出响应注册函数
+				if(send(curSockfd,"-recv_error",32,0)<0)
+					perror("send");
+				return FAILD;
+			}
+		}else{
+			//失败:256
+			strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 修改操作 \033[31m已被中断,exiting..\033[0m\n");
+			myMsgSend(msg_send);
+			sleep(1);
+			return FAILD;
+		}	
+        
+    }
+    return SUCCESS;
 }
 
 /*

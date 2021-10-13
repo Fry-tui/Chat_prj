@@ -33,7 +33,8 @@ void reactRegister(int sockfd,char inet_ip[])
 	char buf[32];
 	char command[32];
 	struct User user;
-	struct Redp empty;
+	struct Redp empty_r;
+	struct Group empty_g;
 	struct Buffer *buffer;
 	//接收合理的手机号 
 	strcpy(user.telenumber,myRecv(sockfd));
@@ -147,7 +148,7 @@ void reactRegister(int sockfd,char inet_ip[])
 	user.preact_id = 0;
 	//printf("set over\n");
 	//添加节点
-	addNode(USER,user,empty);
+	addNode(USER,user,empty_r,empty_g);
 	//printf("addNode over\n");
 	//存档
 	writeFile(USER);

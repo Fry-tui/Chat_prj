@@ -57,11 +57,14 @@
 enum PARA_TYPE{
 	USER,
 	REDP,
+	GROUP,
 };
 //枚举关键词种类
 enum KEY_TYPE{
 	SOCKFD,
 	USERNAME,
+	ONAME,
+	GNAME,
 };
 //枚举缓冲种类
 enum BUF_TYPE{

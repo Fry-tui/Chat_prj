@@ -9,9 +9,14 @@
 //普通用户功能
 int setPwd(void);
 void priChat(void);
+void groupChat(void);
 void addFriend(void);
+void joinGroup(void);
 void listAddMsg(void);
+void listGroups(void);
 void listFriends(void);
+void createGroup(void);
+void listMyGroups(void);
 void disposeAddMsg(void);
 
 int strCnlen(char[]);

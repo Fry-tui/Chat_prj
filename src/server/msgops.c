@@ -76,7 +76,7 @@ char *myRecv(int sockfd)
 			killDisplay(user->msg_key_text); /* 关闭对应显示屏进程 */
 			strcpy(user->msg_id_text,"");
 			strcpy(user->msg_key_text,"");
-			writeFile(USERNAME);	/*将修改结果写入文件 */
+			writeFile(USER);	/*将修改结果写入文件 */
 			
 			printf("[ \033[31mError\033[0m ]  %s网络崩溃,已被强制下线\n",user->name);
 		}else{
@@ -117,10 +117,12 @@ void pthread_Recv(struct User *user)
 	int i=0,j=0;	/* 主要用于字符索引 */
 	int index;	/* 主要用于索引 */
 	int len;
+	int res;
 	int sockfd;
-	char buf[1024],msg[1024],name[1024];
+	char buf[1024],msg[1024],name[1024],group_name[1024];
 	char send_text[1024];
 	struct User * fuser = NULL;
+	struct Group * group = NULL;
 	pthread_t preact_id;
 	
 	pthread_detach(pthread_self());	/*修改线程资源等级,意外结束时自动释放资源*/
@@ -216,19 +218,22 @@ void pthread_Recv(struct User *user)
 		}else if(buf[0]=='@'){		/* sem[1]:收到的私聊消息格式 : @hello           */ 
 			strcpy(user->sem_buf[1],msg);	/* 存储等待处理 */
 			sem_post(&user->sem[1]);
+		}else if(buf[0]=='$'){		/* sem[2]:收到的群聊消息格式 : $hello           */ 
+			strcpy(user->sem_buf[2],msg);	/* 存储等待处理 */
+			sem_post(&user->sem[2]);
 		}else if(buf[0]=='a'){		/* sem[无需sem]:当前客户端处理完添*加后的结果(弹窗操作结果) */
 			/* 实例 msg = 0|许玉泉  		操作结果|请求对象 */
-			printf("pthread_Recv():[a] msg = %s\n",msg);
+			//printf("pthread_Recv():[a] msg = %s\n",msg);
 			i=0;
 			while(msg[i]!='|')
 				buf[i] = msg[i++];
 			buf[i++]='\0'; /* 取得的是操作结果 res [0|256] */
-			printf("pthread_Recv():[a] buf = %s\n",buf);
+			//printf("pthread_Recv():[a] buf = %s\n",buf);
 			j=0;
 			while(msg[i]!='\0')
 				name[j++] = msg[i++];
 			name[j] = '\0';
-			printf("pthread_Recv():[a] name = %s\n",name);
+			//printf("pthread_Recv():[a] name = %s\n",name);
 			fuser = (struct User *)malloc(sizeof(struct User));
 			fuser = reviseUserNode(USERNAME, name, 0); /* 根据用户名获取用户节点 */
 			if(fuser==NULL){
@@ -238,7 +243,7 @@ void pthread_Recv(struct User *user)
 				strcat(send_text,name);
 				strcat(send_text,"已注销,无法加为好友!");
 				
-				printf("pthread_Recv():[a] 未找到用户\n");
+				//printf("pthread_Recv():[a] 未找到用户\n");
 				
 				if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送验证消息 */
 					perror("send");
@@ -255,7 +260,7 @@ void pthread_Recv(struct User *user)
 				/* 同意添加 */
 				//判断是不是已是好友
 				
-				printf("pthread_Recv():[a] 同意添加\n");
+				//printf("pthread_Recv():[a] 同意添加\n");
 				
 				if(index < user->friend_num){
 					/* 是好友 */
@@ -263,20 +268,22 @@ void pthread_Recv(struct User *user)
 					strcat(send_text,name);
 					strcat(send_text,"已经是你好友了,快去聊天吧!");
 					
-					printf("pthread_Recv():[a] 重复添加\n");
+					//printf("pthread_Recv():[a] 重复添加\n");
 					
 					if(send(user->sockfd,send_text,1024,0)<0) /* 给自己发送消息 */
 						perror("send");
 					continue;
 				}
 
-				printf("pthread_Recv():[a] 开始互加处理\n");
+				//printf("pthread_Recv():[a] 开始互加处理\n");
+				strcpy(fuser->friends[fuser->friend_num].f_name,user->name);
 				fuser->friends[fuser->friend_num].puser = user;
 				fuser->friend_num++;
+				strcpy(user->friends[user->friend_num].f_name,fuser->name);
 				user->friends[user->friend_num].puser = fuser;
 				user->friend_num++;
 				
-				printf("pthread_Recv():[a] 处理完成,准备弹窗\n");
+				//printf("pthread_Recv():[a] 处理完成,准备弹窗\n");
 				//弹窗类消息	    
 				if(fuser->online_state==1){
 					//"!out|用户:田恩竹已通过好友验证,快来聊天吧!"
@@ -329,9 +336,119 @@ void pthread_Recv(struct User *user)
 					perror("send");
 			}
 			fuser = NULL;
-			writeFile(USERNAME);
+			writeFile(USER);
 			//strcpy(user->sem_buf[1],msg);
 			//sem_post(&user->sem[1]);
+		}else if(buf[0]=='b'){
+			/* 示例:msg = 0|某某某:申请加入-啥啥啥 */
+			i=0;
+			while(msg[i]!='|'){
+				buf[i]=msg[i];
+				i++;
+			}
+			buf[i++]='\0';
+			res = atoi(buf);
+			j=0;
+			while(msg[i]!=':'){
+				name[j++] = msg[i];
+				i++;
+			}
+			name[j]='\0';
+			while(msg[i++]!='-');
+			j=0;
+			while(msg[i]!='\0'){
+				group_name[j++] = msg[i++];
+			}
+			group_name[j] = '\0';
+
+			printf("res=%d|name=%s|group_name=%s\n",res,name,group_name);
+
+			printf("初始化指针group\n");
+			group = (struct Group *)malloc(sizeof(struct Group));
+			printf("初始化完成\n");
+			group = reviseGroupNode(GNAME, "", group_name);
+			printf("查找完成\n");
+
+			if(group==NULL){
+				strcpy(send_text,"!out|群组:");
+				strcat(send_text,group_name);
+				strcat(send_text,"已解散,无法加人");
+				if(send(user->sockfd,send_text,1024,0)<0)
+					perror("send");
+				continue;
+			}
+
+			printf("group->name=%s\n",group->group_name);
+	
+			/* 判断一下有无重复添加 */
+			printf("group->mem_num=%d\n",group->mem_num);
+			for(i=0;i<group->mem_num;i++){
+				if(strcmp(group->group_mem[i]->name,name)==0)
+						break;
+			}
+			printf("i=%d\n",i);
+			if((group->mem_num!=0&&i<group->mem_num)||strcmp(name,group->owner->name)==0){
+				/* 已经是成员重复验证 */
+				strcpy(send_text,"!out|用户:");
+				strcat(send_text,name);
+				strcat(send_text,"本就是群聊成员,无需重复验证");
+				if(send(user->sockfd,send_text,1024,0)<0)
+					perror("send");
+				continue;
+			}
+
+			/* 找到用户节点指针 */
+			printf("malloc fuser\n");
+			fuser = (struct User *)malloc(sizeof(struct User));
+			printf("malloc over\n");
+			fuser = reviseUserNode(USERNAME, name, 0);
+			printf("fuser->name=%s\n",fuser->name);
+			printf("找到节点\n");
+			/* 判断群主操作结果 */
+			if(res == 0){
+				/* 同意进群 */
+				printf("同意进群\n");
+				strcpy(group->mem_name[group->mem_num],fuser->name);
+				printf("group->mem_name[%d]=%s\n",group->mem_num,group->mem_name[group->mem_num]);
+				group->group_mem[group->mem_num] = (struct User *)malloc(sizeof(struct User));
+				printf("groupmalloc完成\n");
+				group->group_mem[group->mem_num++] = fuser;
+				printf("指向成功\n");
+				
+				if(fuser->online_state==0){
+					/* 不在线 写入验证消息*/
+					strcpy(fuser->add_name[fuser->add_num],group->group_name);
+					strcpy(fuser->add_msg[fuser->add_num],"-已通过验证,快去找他们聊天吧!");/* 提示out弹窗 */
+					fuser->add_num++;
+				}else{
+					/* 在线,弹窗提醒 */
+					strcpy(send_text,"!out|群组:");
+					strcat(send_text,group_name);
+					strcat(send_text,"已同意你的请求,快来聊天吧!");
+					if(send(fuser->sockfd,send_text,1024,0)<0)
+						perror("send");
+				}
+			}else{
+				/* 拒绝进群 */
+				if(fuser->online_state==0){
+					/* 不在线 写入验证消息*/
+					strcpy(fuser->add_name[fuser->add_num],group->group_name);
+					strcpy(fuser->add_msg[fuser->add_num],"-已驳回你的请求!");/* 提示out弹窗 */
+					fuser->add_num++;
+				}else{
+					/* 在线,弹窗提醒 */
+					strcpy(send_text,"!out|群组:");
+					strcat(send_text,group_name);
+					strcat(send_text,"已驳回你的请求!");
+					if(send(fuser->sockfd,send_text,1024,0)<0)
+						perror("send");
+				}
+			}
+			
+			writeFile(USER);
+			printf("write_user\n");
+			writeFile(GROUP);
+			printf("write_groupover\n");
 		}else{
 			printf("[ \033[32mWarn\033[0m ] pthread_Recv(): 数据:%s 无法识别\n",buf);
 		}

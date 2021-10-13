@@ -42,6 +42,7 @@ struct Buffer{
  * @chat_msg: The content of chat messages
  */
 struct Friend{
+	char f_name[32];	/* 好友名字 */
 	struct User* puser; /* 指向具体的好友 */
 	/*@[Warn]:用户注销等相关操作需要销毁所有相关好友的好友节点*/
 	bool chat_state; /* 和该好友的聊天标志 [0]:关闭 [1]:打开*/
@@ -118,6 +119,9 @@ struct User{
  * @gen_time: The time to generate the red envelope
  */
 struct Redp{
+	char owner_name[32];
+	struct User * owner;
+	
 	int split_num; /* 拆分数量 */
 	int grab_num; /* 已抢数量 */
 	
@@ -129,6 +133,31 @@ struct Redp{
 
 	time_t gen_time;	/* 生成时间 */
 };
+
+
+/**
+ * struct Group
+ 
+ * @ group_name		: The name of a unique group
+ * @owner			: Points to the owner that created the group
+ * @permit			: Group access switch
+ * @group_mem		: An array of Pointers to group members
+ * @group_msg		: Store group chat messages
+ */
+struct Group{
+	char group_name[32];	/* 组名 */
+	char owner_name[32];	/* 群主名字 */
+	struct User * owner;	/* 群主指针 */
+	bool permit;			/* 进群权限: 0:直接进 1:需验证 */
+
+	bool g_state[32];		/* 0:关闭|1:打开 */
+	char mem_name[32][32];			/* 群成员名字 */
+	struct User * group_mem[32];	/* 群成员指针数组,一个群上限32人 */
+	char group_msg[64][218];	/* 群聊消息 :六十四条,每条最多218个字符*/
+	int msg_num;	/* 群聊记录数量 */
+	int mem_num;	/* 群成员数量 */
+};
+
 
 /*************************************
  *      	   Linklist				 *
@@ -143,26 +172,39 @@ typedef struct LnodeR{
 	struct LnodeR *next;
 }LnodeR,*LinklistR;
 
+typedef struct LnodeG{
+	struct Group group;
+	struct LnodeG *next;
+}LnodeG,*LinklistG;
+
 /*************************************
  *         GLOBAL PROTOTYPES		 *
  ************************************/
 LinklistU U;	//名媛链表头节点 
 LinklistR R;	//红包链表头节点 
+LinklistG G;	//群聊链表头节点 
 
 struct User * init_user_link;
+struct Redp * init_redp_link;
+struct Group * init_group_link;
 
 
 int cntUNode(void);
+int cntGNode(void);
 int modUserNode(struct User);
 int delUserNode(int,char[],int);
 
 void initLink(void);
 void listLinklistU(int);
-void addNode(int,struct User,struct Redp);
+void listLinklistG(void);
+
 void clearUnreadMsg(struct User * user);
+void addNode(int,struct User,struct Redp,struct Group);
 
 struct User grepUserNode(int,char[],int);
 struct User * reviseUserNode(int,char[],int);
+struct Group * reviseGroupNode(int,char[],char[]);
+
 
 
 

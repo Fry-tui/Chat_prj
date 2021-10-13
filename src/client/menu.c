@@ -146,11 +146,13 @@ void userMenu(void)
 		}else if(strcmp(buf,"2")==0){
 			priChat();
 		}else if(strcmp(buf,"3")==0){
-			//pubChat();
+			createGroup();
 		}else if(strcmp(buf,"4")==0){
-			//tranAccount();
-		}else if(strcmp(buf,"5")==0){	
-			//topUp();
+			listGroups();
+			joinGroup();
+		}else if(strcmp(buf,"5")==0){
+			listMyGroups();	
+			groupChat();
 		}else if(strcmp(buf,"6")==0){
 			//sendRedp();
 		}else if(strcmp(buf,"7")==0){
@@ -233,6 +235,9 @@ void rootMenu(void)
 		}else if(strcmp(buf,"4")==0){
 			//bcAnnouncement();
 		}else if(strcmp(buf,"5")==0){
+			if(recv(curSockfd,buf,32,0)<0)
+				perror("recv");
+		}else if(strcmp(buf,"6")==0){
 			closeServer();
 		}else if(strcmp(buf,"exit")==0){
 			return;

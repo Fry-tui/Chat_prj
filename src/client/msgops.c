@@ -179,8 +179,28 @@ void zenityOps(char buf[])
 		/* 实例 a0|许玉泉 	a:添加结果类信息 0:添加选择确定 |:拼接字符 许玉泉:添加对象*/
 		if(send(curSockfd,send_text,1024,0)<0)
 			perror("send");
+	}else if(strcmp(type,"addGroup")==0){
+		i++;
+		j=0;
+		while(buf[i]!='\0'){
+			text[j++] = buf[i++];
+		}
+		text[j] = '\0';
+		/* text:许玉泉:请求加入-群聊1 */
+		strcpy(command,"zenity --question --title=验证消息 --ok-label=同意 --cancel-label=拒绝 --text=");
+		strcat(command,text);
 
-		/* 等待处理结果 */
+		res = system(command);
+
+		//把处理结果给到服务器,服务器进行makefriends处理,然后返回结果
+		sprintf(buf,"%d",res);
+		strcpy(send_text,"b");
+		strcat(send_text,buf);
+		strcat(send_text,"|");
+		strcat(send_text,text);
+		/* 实例 b0|许玉泉:请求加入-闲聊群1 	a:添加结果类信息 0:添加选择确定 |:拼接字符 添加对象:添加信息*/
+		if(send(curSockfd,send_text,1024,0)<0)
+			perror("send");
 	}else if(strcmp(type,"out")==0){
 		/* 示例: !out|text  */
 		i++;

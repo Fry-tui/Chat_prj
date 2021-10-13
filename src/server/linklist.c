@@ -32,9 +32,11 @@ void initLink(void)
 	//为头节点开辟空间
 	U = (LinklistU)malloc(sizeof(LnodeU));
 	R = (LinklistR)malloc(sizeof(LnodeR));
+	G = (LinklistG)malloc(sizeof(LnodeG));
 	//让每个链表的尾部指向NULL 
 	U->next = NULL;
 	R->next = NULL; 
+	G->next = NULL;
 	return;
 }
 /*@[Warn]全写完之后需要验证addNode参数(枚举)*/
@@ -50,11 +52,13 @@ void initLink(void)
 * @return: 默认返回0
 ****************************************************************************************
 */
-void addNode(int type,struct User user,struct Redp redp)
+void addNode(int type,struct User user,struct Redp redp,struct Group group)
 {
 	//准备遍历用的节点u,r	以及新增节点p,q
 	LinklistU u=U,p;	
-	LinklistR r=R,q;
+	LinklistR r=R,q;	
+	LinklistG g=G,o;
+	
 	//根据传入类型选择操作
 	if(type == USER){
 		//添加用户节点 
@@ -72,6 +76,14 @@ void addNode(int type,struct User user,struct Redp redp)
 		q->redp = redp;
 		r->next = q;
 		q->next = NULL;
+	}else if(type == GROUP){
+		//添加群主节点 
+		while(g->next)
+			g = g->next;
+		o = (LinklistG)malloc(sizeof(LnodeG));
+		o->group = group;
+		g->next = o;
+		o->next = NULL;
 	}else{
 		//类型有误 
 		printf("[ \033[31mError\033[0m ] linklist.c addNode():无法识别要新增的节点类型\n");
@@ -179,6 +191,32 @@ struct User * reviseUserNode(int key,char name[],int sockfd)
 	return NULL; /* 查询失败返回空指针 */
 }
 
+struct Group * reviseGroupNode(int key,char owner_name[],char group_name[])
+{
+	LinklistG g = G->next;
+	if(key==ONAME){
+		while(g){
+			if(strcmp(g->group.owner->name,owner_name)==0){
+				return &g->group;
+			}
+			g = g->next;
+		}
+		DPRINTF("[ \033[34mInfo\033[0m ] linklist.c reviseGroupNode():无该节点\n");
+	}else if(key==GNAME){
+		while(g){
+			if(strcmp(g->group.group_name,group_name)==0){
+				return &g->group;
+			}
+			g = g->next;
+		}
+		DPRINTF("[ \033[34mInfo\033[0m ] linklist.c reviseGroupNode():无该节点\n");
+	}else{
+		printf("[ \033[31mError\033[0m ] linklist.c reviseGroupNode():无法识别关键字类型\n");
+	}
+	
+	return NULL; /* 查询失败返回空指针 */
+}
+
 /*
 ****************************************************************************************
 *                                删除用户节点
@@ -248,12 +286,12 @@ void listLinklistU(int sockfd)
 	char buf[32];
 	LinklistU u = U->next;
 
-	DPRINTF("[ \033[34mInfo\033[0m ] 等待可执行信号\n");
+	//DPRINTF("[ \033[34mInfo\033[0m ] 等待可执行信号\n");
 	sem_wait(&global_sem_cmd); /* 等待信号量被释放 */
-	DPRINTF("[ \033[34mInfo\033[0m ] 输出就绪\n");
+	//DPRINTF("[ \033[34mInfo\033[0m ] 输出就绪\n");
 	cnt = cntUNode();
 	sprintf(buf,"%d",cnt);
-	global_command = (char *)calloc(cnt+1,sizeof(struct User)/2);
+	global_command = (char *)calloc(cnt+1,sizeof(struct User)/128);
 	/* 多选:--multiple 可编辑:--editable */
 	strcpy(global_command,"zenity --list --print-column=all --text=用户总数:");
 	strcat(global_command,buf); /* 用户总数 */
@@ -356,6 +394,120 @@ void listLinklistU(int sockfd)
 	return;
 }
 
+/*
+****************************************************************************************
+*                                罗列群聊链表
+*
+* @Desc  : 表单形式罗列群聊节点
+* @sockfd: 
+* @return: 空
+示例:
+zenity --list --print-column=all --title=群聊列表 --text=群聊总数:3 --column=群聊名称 --column=群主 --
+column=进群权限 --column=成员数量 --column=消息数量 吃瓜1群 许玉泉 无需验证 12 24 吃瓜2群 
+吴洁铃 无需验证 12 33 嘘！小点声 吴洁铃 需验证 99+ 999+
+
+****************************************************************************************
+*/
+void listLinklistG(void)
+{
+	int cnt,res;
+	char buf[32];
+	LinklistG g = G->next;
+
+	//DPRINTF("[ \033[34mInfo\033[0m ] 等待可执行信号\n");
+	sem_wait(&global_sem_cmd); /* 等待信号量被释放 */
+	//DPRINTF("[ \033[34mInfo\033[0m ] 输出就绪\n");
+	cnt = cntGNode();
+	sprintf(buf,"%d",cnt);
+	global_command = (char *)calloc(cnt+1,sizeof(struct Group)/24);
+	/* 多选:--multiple 可编辑:--editable */
+	strcpy(global_command,"zenity --list --print-column=all --title=群聊列表 --text=群聊总数:");
+	strcat(global_command,buf); /* 群聊总数 */
+	strcat(global_command," --column=群聊名称 --column=群主 --column=进群权限");
+	strcat(global_command," --column=成员数量 --column=消息数量 ");
+	//system(global_command);
+	while(g){
+		
+		//system(global_command);
+		
+		strcat(global_command,g->group.group_name);
+		strcat(global_command," ");
+		
+		//system(global_command);
+
+		//printf("name:%s\n",g->group.owner->name);
+		strcat(global_command,g->group.owner->name);
+		strcat(global_command," ");
+
+		
+		//system(global_command);
+		
+		if(g->group.permit==1){
+			strcat(global_command,"需验证 ");
+		}else{
+			strcat(global_command,"无需验证 ");
+		}
+		
+		//system(global_command);
+		
+		sprintf(buf,"%d",g->group.mem_num);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+
+		
+		//system(global_command);
+		
+		sprintf(buf,"%d",g->group.msg_num);
+		strcat(global_command,buf);
+		strcat(global_command," ");
+
+		//system(global_command);
+		g = g->next;
+	}
+	//DPRINTF("global_command=%s\n",global_command);
+	res = system(global_command);
+	sem_post(&global_sem_cmd);
+
+	free(global_command);
+	
+	return;
+}
+
+/*
+****************************************************************************************
+*                  重新读取文件生成新链表后要去更新链表节点里的指针地址
+*
+* @Desc  : 遍历节点数
+* @Para  : void 
+* @return: 节点数
+****************************************************************************************
+*/
+void updateLink(void)
+{
+	int i;
+	LinklistU u = U->next;
+	LinklistG g = G->next;
+	/* User 结构体没有用到指针:万幸.但是他的成员struct Friends结构体用到了所以也要更新 */
+	while(u){
+		for(i=0;i<u->user.friend_num;i++){
+			u->user.friends[i].puser = reviseUserNode(USERNAME, u->user.friends[i].f_name, 0);
+		}
+		u = u->next;
+	}
+
+	/* 更新群组链表 */
+	while(g){
+		g->group.owner = reviseUserNode(USERNAME, g->group.owner_name, 0);
+
+		for(i=0;i<g->group.mem_num;i++){
+			g->group.group_mem[i] = reviseUserNode(USERNAME, g->group.mem_name[i], 0);
+		}
+	
+		g = g->next;
+	}
+	return;
+}
+
 
 /*
 ****************************************************************************************
@@ -376,6 +528,27 @@ int cntUNode(void)
 	}
 	return cnt;
 }
+
+/*
+****************************************************************************************
+*                                计算群聊节点个数
+*
+* @Desc  : 遍历节点数
+* @Para  : void 
+* @return: 节点数
+****************************************************************************************
+*/
+int cntGNode(void)
+{
+	int cnt=0;
+	LinklistG g = G->next;
+	while(g){
+		cnt++;
+		g = g->next;
+	}
+	return cnt;
+}
+
 
 /****************************************************************************************
 *                                清除字符串数组里的空字符

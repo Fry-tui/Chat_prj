@@ -220,9 +220,10 @@ void priChat(struct User * user)
 		
 		if(strcmp(buf,"exit")==0){
 			/* 退出操作 */
-			printf("exit\n");
+			//printf("exit\n");
+			u_fnode->chat_state = 0;
 			break;
-			printf("test\n");
+			//printf("test\n");
 		}
 
 		//需要处理的消息
@@ -291,14 +292,495 @@ void priChat(struct User * user)
 		
 	}
 
-	printf("here\n");
+	//printf("here\n");
 	u_fnode->chat_state = 0;	
 	writeFile(USER);
-	printf("写入完成\n");
+	//printf("写入完成\n");
 	if(send(sockfd,"-exit_priChat",1024,0)<0) /* 发送处理完成等待就绪的信号 */
 		perror("send");
 	return;
 }
+
+
+
+/*
+****************************************************************************************
+*                                  响应群聊
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
+
+void groupChat(struct User * user)
+{	
+	int i,index;
+	char buf[1024],send_text[1024];
+	int sockfd = user->sockfd;
+	struct Group * group;
+	group = (struct Group *)malloc(sizeof(struct Group));
+	
+	while(1){
+		sem_wait(&user->sem[0]);
+		strcpy(buf,user->sem_buf[0]);
+
+		if(strcmp(buf,"exit")==0){
+			if(send(sockfd,"-exit",32,0)<0)
+				perror("send");
+			sem_wait(&user->sem[0]);	/* 等待退出信号 */
+			DPRINTF("[ \033[34mInfo\033[0m ] 退出群聊响应程序\n");
+			return;
+		}else{
+			/* 判断群是否存在 */
+			group = reviseGroupNode(GNAME, "", buf);
+
+			if(group == NULL){
+				/* 没找到 */
+				if(send(sockfd,"-error_input",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				/* 查看群成员有没有自己 */
+				for(i=0;i<group->mem_num;i++){
+					if(strcmp(user->name,group->group_mem[i]->name)==0){
+						if(send(sockfd,"-end_input",32,0)<0)
+							perror("send");
+						index = i;
+						break;
+					}
+				}
+				if(i>=group->mem_num){
+					if(send(sockfd,"-error_input",32,0)<0)
+						perror("send");
+					continue;
+				}else{
+					break;
+				}
+			}
+		}
+	}
+
+	sem_wait(&user->sem[0]);	/* 同步信号 */
+
+	//开启群聊
+	group->g_state[index]=1;
+	/* 发送群名 */
+	//发送群聊名字
+	strcpy(send_text,"-");
+	strcat(send_text,group->group_name);
+	if(send(sockfd,send_text,64,0)<0)
+		perror("send");
+
+	sem_wait(&user->sem[0]);	/* 等待同步信号 */
+	if(group->msg_num>6){
+		if(send(sockfd,"-6",64,0)<0)
+			perror("send");
+	}else{
+		sprintf(buf,"%d",group->msg_num);
+		strcpy(send_text,"-");
+		strcat(send_text,buf);
+		if(send(sockfd,send_text,64,0)<0)
+			perror("send");
+	}
+
+	if(group->msg_num>0&&group->msg_num<7){
+		for(i=0;i<group->msg_num;i++){
+			sem_wait(&user->sem[0]);
+			strcpy(send_text,"-");
+			strcat(send_text,group->group_msg[i]);
+			if(send(sockfd,send_text,1024,0)<0)
+				perror("send");
+		}
+	}else if(group->msg_num>6){
+		for(i=6;i>0;i--){
+			sem_wait(&user->sem[0]);
+			strcpy(send_text,"-");
+			strcat(send_text,group->group_msg[group->msg_num-i]);
+			if(send(sockfd,send_text,1024,0)<0)
+				perror("send");
+		}
+	}
+
+	sem_wait(&user->sem[0]);	/* 同步 */
+	strcpy(send_text,"-");
+	strcat(send_text,user->name);
+	if(send(sockfd,send_text,64,0)<0)
+		perror("send");
+
+	/* 等待用户输入 */
+	while(1){
+		sem_wait(&user->sem[2]);
+		strcpy(buf,user->sem_buf[2]);
+
+		if(strcmp(buf,"exit")==0){
+			/* 退出操作 */
+			break;
+		}
+
+		if(group->msg_num>63){
+			/* 消息过多,需要清理,删一半 */
+			for(i=0;i<group->msg_num/2;i++){
+				strcpy(group->group_msg[i],group->group_msg[i+32]);
+			}
+			group->msg_num == i;
+		}
+		/* 把消息存入群聊记录 xxx:sadadsadad */
+		strcpy(group->group_msg[group->msg_num],user->name);
+		strcat(group->group_msg[group->msg_num],":");
+		strcat(group->group_msg[group->msg_num],buf);
+		group->msg_num++;
+
+		for(i=0;i<group->mem_num;i++){
+			if((group->group_mem[i]->online_state==1)&&(group->g_state[i]==1)&&(index!=i)){
+				/* 发送过去 */
+				strcpy(send_text,"@");
+				strcat(send_text,user->name);
+				strcat(send_text,":");
+				strcat(send_text,buf);
+				if(send(group->group_mem[i]->sockfd,send_text,1024,0)<0) 
+					perror("send");
+			}
+		}
+
+		if(send(sockfd,"-over_sand",1024,0)<0) /* 发送处理完成等待就绪的信号 */
+			perror("send");
+	}
+
+	group->g_state[index] = 0;
+	writeFile(USER);
+	if(send(sockfd,"-exit_groupChat",1024,0)<0) /* 发送处理完成等待就绪的信号 */
+		perror("send");
+	return;
+}
+
+
+/*
+****************************************************************************************
+*                                  创建群聊
+* @Desc  : 创建群聊
+* @return: 无返回值
+****************************************************************************************
+*/
+void createGroup(struct User * user)
+{
+	int i;
+	int res;
+	int sockfd;
+	char buf[1024],send_text[1024];
+	struct Group * group;
+	struct Buffer *buffer;
+	struct User empty_u;
+	struct Redp empty_r;
+	sockfd = user->sockfd;
+	buffer = (struct Buffer *)malloc(sizeof(struct Buffer));
+	group = (struct Group *)malloc(sizeof(struct Group));
+
+	/* 发送一个同步信号 */
+	if(send(sockfd,"-ready_create",32,0)<0)
+		perror("send");
+
+	/* 获取表单数据 */
+	while(1){
+		sem_wait(&user->sem[0]);
+		strcpy(buf,user->sem_buf[0]);
+		//printf("NAME表单操作结果:%s\n",buf);
+		if(strcmp(buf,"0")==0){  /* 存入数据成功 */
+			//读表单数据函数
+			readBuffer(NAMEFORMBUF,1,"_form",(void *)buffer,user->inet_ip_text);
+			if(buffer->avail_flag==ILLEGAL){
+				//发送不合法
+				if(send(sockfd,"-ILLEGAL",32,0)<0)
+					perror("send");
+				return;
+			}else if(buffer->avail_flag==LENILLEGAL){
+				//发送长度不合法
+				if(send(sockfd,"-LENILLEGAL",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				//发送读到了
+				if(send(sockfd,"-READOVER",32,0)<0)
+					perror("send");
+			}
+
+			/* 等待同步信号 */
+			sem_wait(&user->sem[0]);
+			//printf("同步信号:%s\n",user->sem_buf[0]);
+			
+			/* 如果接收空输入 */
+			if(strcmp(buffer->name,"")==0)
+			{
+				if(send(sockfd,"-NULL",32,0)<0)
+					perror("send");
+				continue;
+			}
+			//printf("查询链表前\n");
+			group = reviseGroupNode(GNAME,"",buffer->name);
+			//printf("查询结果:\n");
+			if(group!=NULL){
+				/* 群名已被占用 */
+				//printf("group!=NULL\n");
+				if(send(sockfd,"-name",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				//printf("group==NULL\n");
+				group = (struct Group *)malloc(sizeof(struct Group));
+				//printf("开始赋值名字:%s\n",buffer->name);
+				strcpy(group->group_name,buffer->name);
+				//printf("赋值名字结束-group->name:%s\n",group->group_name);
+				/* 告知群名可用 */
+				if(send(sockfd,"-none_group",32,0)<0)
+					perror("send");
+				break;
+			}
+		}else if(strcmp(buf,"recv_error")==0){ /* 如果管理员退出 */
+			return;
+		}else{	/* 存失败 */
+			printf("[ \033[31mError\033[0m ] reactRootMenu():用户中断创建群聊操作\n");
+			//printf("存储失败准备退出\n");
+			sem_wait(&user->sem[0]);
+			return;
+		}
+	}
+
+	//printf("等待同步信号\n");
+	/* 等待同步信号 */
+	sem_wait(&user->sem[0]);
+
+	//printf("等待权限询问接结果\n");
+	sem_wait(&user->sem[0]);
+	res = atoi(user->sem_buf[0]);
+	//printf("权限询问结果:%s res=%d\n",user->sem_buf[0],res);
+	if(res == 0){	 /* 开启验证 */
+		group->permit = 1;
+	}else{/* 关闭验证 */
+		group->permit = 0;
+	}
+	//printf("group->permit=%d\n",group->permit);
+	strcpy(group->owner_name,user->name);
+	group->owner = user;
+	group->msg_num = 0;
+	group->mem_num = 0;
+
+	for(i=0;i<32;i++){
+		group->group_mem[i] = NULL;
+		group->g_state[i]=0;
+	}
+	for(i=0;i<64;i++){
+		strcpy(group->group_msg[i],"");
+	}
+
+	/* 让群主成为第一个群成员 */
+	strcpy(group->mem_name[i],user->name);
+	group->group_mem[0] = (struct User *)malloc(sizeof(struct User));
+	group->group_mem[0] = user;
+	group->mem_num=1;
+	addNode(GROUP, empty_u, empty_r, *group);
+	//printf("添加成功\n");
+	writeFile(GROUP);
+	//printf("写入成功\n");
+
+	free(group);
+	if(send(sockfd,"-exit_createGroup",32,0)<0)
+		perror("send");
+	return;
+}
+
+
+/*
+****************************************************************************************
+*                                  罗列群聊名称
+* @Desc  : 罗列群组名称
+* @return: 无返回值
+****************************************************************************************
+*/
+void listGroups(struct User * user)
+{
+	int i=0;
+	char buf[1024];
+	char send_text[1024];
+	int sockfd = user->sockfd;
+	int group_num;
+	LinklistG g = G->next;
+
+	group_num = cntGNode();
+
+	sprintf(buf,"%d",group_num);
+	strcpy(send_text,"-");
+	strcat(send_text,buf);
+	if(send(sockfd,send_text,32,0)<0)
+		perror("send");
+
+	while(g){
+		sem_wait(&user->sem[0]);
+		strcpy(send_text,"-");
+		strcat(send_text,g->group.group_name);
+		if(send(sockfd,send_text,1024,0)<0)
+			perror("send");
+		g = g->next;
+	}
+
+	sem_wait(&user->sem[0]);	/* 等待退出信号 */
+	
+	return;
+}
+
+
+/*
+****************************************************************************************
+*                               罗列自己加入的群聊名称
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
+
+void listMyGroups(struct User * user)
+{	
+	int i=0;
+	char buf[1024];
+	char send_text[1024];
+	int sockfd = user->sockfd;
+	int group_num=0;
+	char group_name[64][64];
+	LinklistG g = G->next;
+
+	//获取有我的群的数量
+	while(g){
+		if(strcmp(user->name,g->group.owner_name)==0){
+			strcpy(group_name[group_num],g->group.group_name);
+			group_num++;
+			g = g->next;
+			continue;
+		}
+		for(i=0;i<g->group.mem_num;i++){
+			if(strcmp(user->name,g->group.group_mem[i]->name)==0){
+				strcpy(group_name[group_num],g->group.group_name);
+				group_num++;
+				break;
+			}
+		}
+		g = g->next;
+	}
+
+	sprintf(buf,"%d",group_num);
+	strcpy(send_text,"-");
+	strcat(send_text,buf);
+	if(send(sockfd,send_text,32,0)<0)
+		perror("send");
+
+	for(i=0;i<group_num;i++){
+		sem_wait(&user->sem[0]);
+		strcpy(send_text,"-");
+		strcat(send_text,group_name[i]);
+		if(send(sockfd,send_text,1024,0)<0)
+			perror("send");
+	}
+
+	sem_wait(&user->sem[0]);	/* 等待退出信号 */
+	
+	return;
+
+}
+
+
+/*
+****************************************************************************************
+*                                  加入群聊
+* @Desc  : 若群里无需验证直接加入,需验证(群主在线->弹窗)|(群主不在线->未读)
+* @return: 无返回值
+****************************************************************************************
+*/
+void joinGroup(struct User * user)
+{
+	int i;
+	char buf[1024],send_text[1024];
+	int sockfd = user->sockfd;
+	struct Group * group;
+	group = (struct Group *)malloc(sizeof(struct Group));
+	while(1){
+		sem_wait(&user->sem[0]);
+		strcpy(buf,user->sem_buf[0]);
+
+		if(strcmp(buf,"exit")==0){
+			if(send(sockfd,"-exit",32,0)<0)
+				perror("send");
+			sem_wait(&user->sem[0]);	/* 等待退出信号 */
+			DPRINTF("[ \033[34mInfo\033[0m ] 退出加群响应程序\n");
+			return;
+		}else{
+			/* 判断群是否存在 */
+			group = reviseGroupNode(GNAME, "", buf);
+
+			if(group == NULL){
+				/* 没找到 */
+				if(send(sockfd,"-error_input",32,0)<0)
+					perror("send");
+				continue;
+			}else{
+				if(send(sockfd,"-end_input",32,0)<0)
+					perror("send");
+				break;
+			}
+		}
+	}
+
+	//printf("等待同步信号\n");
+	sem_wait(&user->sem[0]);	/* 同步信号 */
+	//printf("group->mem_num=%d\n",group->mem_num);
+	for(i=0;i<group->mem_num;i++){
+		printf("user->name=%s\n",user->name);
+		printf("group->group_mem[%d]=%s\n",i,group->group_mem[i]->name);
+		if(strcmp(group->group_mem[i]->name,user->name)==0)
+			break;
+	}
+	printf("i=%d\n",i);
+	
+	if((group->mem_num!=0&&i<group->mem_num)||strcmp(user->name,group->owner->name)==0){
+		if(send(sockfd,"-mem_exist",32,0)<0)
+			perror("send");
+		sem_wait(&user->sem[0]);	/* 等待退出信号 */
+		return;
+	}
+	printf("group->permit=%d\n",group->permit);
+	
+	/* 判断是否需要验证 */
+	if(group->permit==1){
+		/* 需要验证 */
+		
+		/* 判断群主在不在线 */
+		if(group->owner->online_state==1){
+			/* 在线直接发送弹窗消息 !addGroup|许玉泉:请求加入闲聊群*/
+			strcpy(send_text,"!");
+			strcat(send_text,"addGroup|");
+			strcat(send_text,user->name);
+			strcat(send_text,":请求加入-");
+			strcat(send_text,group->group_name);
+			if(send(group->owner->sockfd,send_text,1024,0)<0)
+				perror("send");
+		}else{
+			/* 不在线->发送到验证消息到群主的结构体 许玉泉 #请求加入闲聊群*/
+			strcpy(group->owner->add_name[group->owner->add_num],user->name);
+			strcpy(group->owner->add_msg[group->owner->add_num],":请求加入-");
+			strcat(group->owner->add_msg[group->owner->add_num],group->group_name);
+			group->owner->add_num++;
+		}
+		
+		if(send(sockfd,"-require_over",32,0)<0)
+			perror("send");
+	}else{
+		/* 无需验证 */
+		strcpy(group->mem_name[group->mem_num],user->name);
+		group->group_mem[group->mem_num++]=user;
+		
+		if(send(sockfd,"-add_over",32,0)<0)
+			perror("send");
+	}
+
+	writeFile(GROUP);
+	sem_wait(&user->sem[0]);	/* 等待退出信号 */
+	return;
+}
+
 
 /*
 ****************************************************************************************
@@ -424,7 +906,7 @@ void addFriend(struct User * user)
 					perror("send");
 			}
 
-			while(detime--); /* 大致延时0.1s */
+			while(detime-->0); /* 大致延时0.1s */
 			/* 如果接收空输入 */
 			if((strcmp(buffer->name,"")==0)||(strcmp(buffer->text,"")==0))
 			{
@@ -576,7 +1058,16 @@ void disposeAddMsg(struct User * user)
 		DPRINTF("[ \033[36mInfo\033[0m ]处理的索引是:%d 处理的用户:%s 处理的文本:%s\n",index,user->add_name[index],user->add_msg[index]);
 
 		/* 判断消息类型 */
-		if(user->add_msg[index][0]!='-'){
+		if(user->add_msg[index][0]==':'){
+			/* 请求类消息 */
+			/* 直接发送弹窗消息 */
+			strcpy(send_text,"!");
+			strcat(send_text,"addGroup|");
+			strcat(send_text,user->add_name[index]);
+			strcat(send_text,user->add_msg[index]);
+			if(send(sockfd,send_text,1024,0)<0)
+				perror("send");
+		}else if(user->add_msg[index][0]!='-'){
 			/* 请求类消息 */
 			/* 直接发送弹窗消息 */
 			strcpy(send_text,"!");

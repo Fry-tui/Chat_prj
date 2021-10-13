@@ -48,14 +48,17 @@ int main(int argc, char * argv [ ])
      
     //初始化链表
 	initLink();
+	//printf("afterInit:%d\n",cntGNode());
 	//读取本地文件
 	readFile();
-
+	//printf("afterRead:%d\n",cntGNode());
+	updateLink();
+	
 	sem_init(&global_sem_cmd,0,1);	/* 初始值为1 */
 	//global_command = (char *)malloc(sizeof(struct User)); /* 初始化:global_command */
 	
 	printf("%s","\033[1H\033[2J"); /*清屏输出*/
-    printf("***********************************\033[44m服务器启动\033[0m***********************************\n"); 
+    printf("*****************************\033[44m服务器启动\033[0m*****************************\n"); 
 
 	sockfd = socket(AF_INET,SOCK_STREAM,0);	/*准备套接字*/
 	if(sockfd<0){	
