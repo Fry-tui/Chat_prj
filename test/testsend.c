@@ -19,8 +19,11 @@
 
 int main()
 {
-	int detime=100000000;
-	while(detime--);
-	//sleep(1);
+	int i,j;
+	for(i=0;i<9;i++){
+		for(j=0;j<10;j++){
+			printf("\033[3%dm\033[4%dm i=%d,j=%d \033[0m\n",i,j,i,j);
+		}
+	}
 	return 0;
 }	

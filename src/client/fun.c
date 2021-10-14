@@ -987,6 +987,154 @@ int setPwd(void)
 
 /*
 ****************************************************************************************
+*                                 	 发送文件
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
+void sendFile(void)
+{
+	int i,j,k;
+	int cnt=0;
+	int res;
+	int hole;
+	int f_sockfd;
+    int fileTrans;
+    int len_filepath; //filepath length
+    int addrlen=sizeof(struct sockaddr);
+	
+    char *buf;//file buf
+	char name[32];
+	char command[128];
+    char filepath[128];
+	char filename[128];
+	char send_text[1024];
+	char recv_text[1024];
+ 
+    FILE *fp;
+	
+	struct Buffer * buffer;
+    struct sockaddr_in server;
+	
+	Msg msg_send = {1,"none"};
+
+    msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,"\033[1H\033[2J");
+	myMsgSend(msg_send);
+	strcpy(msg_send.text,"\t-----------发送文件-----------\n");
+	myMsgSend(msg_send);
+
+    buf = (char *)malloc(sizeof(char)*BUFFER_SIZE);
+	buffer = (struct Buffer *)malloc(sizeof(struct Buffer));
+    bzero(buf,BUFFER_SIZE); 
+	
+	/* 输入发送对象 */
+	printf("请输入(发送对象):");
+	scanf("%s",name);
+	strcpy(send_text,"-");
+	strcat(send_text,name);
+	if(send(curSockfd,send_text,32,0)<0)
+		perror("send");
+
+	sem_wait(&global_sem);
+	strcpy(recv_text,global_sem_buf);
+
+	if(strcmp(recv_text,"same")==0){
+		strcpy(msg_send.text,"\t#system msg:\33[31m不能给自己发送文件\33[0m\n");
+		myMsgSend(msg_send);
+		system("zenity --error --text=不能给自己发送文件 --no-wrap --title=发送文件");
+		if(send(curSockfd,"-exit",32,0)<0)
+			perror("send");
+		return;
+	}else if(strcmp(recv_text,"none_exist")==0){
+		strcpy(msg_send.text,"\t#system msg:\33[31m用户不存在\33[0m\n");
+		myMsgSend(msg_send);
+		system("zenity --error --text=用户不存在 --no-wrap --title=发送文件");
+		if(send(curSockfd,"-exit",32,0)<0)
+			perror("send");
+		return;
+	}
+
+	strcpy(msg_send.text,"\t#system msg:\33[32m用户存在\33[0m\n");
+	myMsgSend(msg_send);
+
+	//打开选项框
+	strcpy(command,"zenity --file-selection --title=请选择需要发送的文件 --filename=data  > ./data/ipbuffer/");
+	strcat(command,inet_ip_text);
+	strcat(command,"_form");
+	res = system(command); /* 0:成功 256:退出 */
+
+	sprintf(recv_text,"%d",res);
+	strcpy(send_text,"-");
+	strcat(send_text,recv_text);
+	if(send(curSockfd,send_text,32,0)<0)
+		perror("send");
+	
+	if(res==0){
+		sem_wait(&global_sem);	/* 等待同步信号 */
+		//读取缓冲区的文件名
+		memset(buffer->src,0,sizeof(buffer->src));
+		readBuffer(0,1,"_form",(void *)buffer,inet_ip_text);
+		//文件名分隔
+		i=0;
+		j=0;
+		for(i=strlen(buffer->src);i>=0;i--){
+			if(buffer->src[i]!='/')
+				j++;
+			else
+				break;
+		}
+		strcpy(filename,buffer->src+(strlen(buffer->src)-j)+1);
+		printf("path=%s,name=%s\n",buffer->src,filename);
+
+		//发送文件名
+		strcpy(send_text,"-");
+		strcat(send_text,filename);
+		if(send(curSockfd,send_text,32,0)<0)
+			perror("send");
+
+		fp = fopen(buffer->src,"r");
+		if(fp==NULL){
+			system("zenity --error --text=文件打开失败 --no-wrap --title=发送文件");
+			sem_wait(&global_sem);
+			return;
+		}
+		strcpy(msg_send.text,"\t#system msg:\33[32m开始传送文件\33[0m\n");
+		myMsgSend(msg_send);
+		//发送文件
+		while((fileTrans = fread(buf,sizeof(char),BUFFER_SIZE,fp))>0){
+			cnt++;
+			sprintf(send_text,"%d",cnt);
+			sleep(1);
+			strcpy(msg_send.text,"\t#system msg:耗时:\33[43m");
+			strcat(msg_send.text,send_text);
+			strcat(msg_send.text,"\33[0m s\n\0");
+			myMsgSend(msg_send);
+
+			if(sendto(udpSockfd,buf,fileTrans,0,(struct sockaddr *)&udp_server,addrlen)<0)
+				break;
+			//printf("send successful!\n");
+			if(fileTrans < BUFFER_SIZE)
+				break;
+			bzero(buf,BUFFER_SIZE);
+		}
+		
+		system("zenity --info --text=传输完成,等待对方接收 --no-wrap --title=发送文件");
+		fclose(fp);
+
+	}else{
+		strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 发送文件 \033[31m已被中断,exiting..\033[0m\n");
+		myMsgSend(msg_send);
+		sleep(1);
+		return;
+	}
+	if(send(curSockfd,"-exit",32,0)<0)
+		perror("send");
+	return;
+}
+
+/*
+****************************************************************************************
 *                                 	 下线指定用户
 * @Desc  : 
 * @return: 无返回值
@@ -1342,4 +1490,41 @@ void rmUser(void)
 		}
 	}
 	return ;
+}
+
+/*
+****************************************************************************************
+*                                 	 广播消息
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
+void bcAnnouncement(void)
+{
+	int res;
+	char name[32],buf[1024],command[1024];
+	Msg msg_send = {1,"none"};
+	
+	msg_send.choice=INULLMENU;
+	strcpy(msg_send.text,"\033[1H\033[2J");
+	myMsgSend(msg_send);
+	strcpy(msg_send.text,"\t---------广播消息---------\n");
+	myMsgSend(msg_send);
+
+	printf("请输入(广播):");
+	scanf("%s",buf);
+
+	if(send(curSockfd,buf,32,0)<0)
+		perror("send");
+
+	strcpy(msg_send.text,"\033[33m#\033[0msystem msg:\033[32m");
+	strcat(msg_send.text,buf);
+	strcat(msg_send.text,"\0330[m\n\0");
+
+	if(recv(curSockfd,buf,1024,0)<0)
+		perror("recv");
+
+	myMsgSend(msg_send);
+
+	return;
 }

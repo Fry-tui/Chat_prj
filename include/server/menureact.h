@@ -5,7 +5,6 @@
 
 struct User * init_user_menureact;
 
-
 void reactMainMenu(int *);
 void reactRootMenu(int,char[]);
 void reactUserMenu(struct User *user);

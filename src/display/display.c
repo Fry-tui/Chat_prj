@@ -108,7 +108,8 @@ void displayUserMenu(char num_text[])
 	printf ("\t|\t12  删除好友\t    |\n");
 	printf ("\t|\t13  找群叭叭\t    |\n");
 	printf ("\t|\t14  发送文件\t    |\n");
-	printf ("\t|\t15  注销用户\t    |\n");
+	printf ("\t|\t15  接收文件\t    |\n");
+	printf ("\t|\t16  注销用户\t    |\n");
 	printf ("\t|\texit 退出登入\t    |\n");
 	printf ("\t----------\33[34m功\33[0m-----------------\n");
 	printf ("\t--------------\33[34m能\33[0m-------------\n");

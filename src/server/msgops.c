@@ -65,6 +65,8 @@ char *myRecv(int sockfd)
 				//若该用户在线,则修改登入时长
 				user->duration += (time(NULL)-user->login_t);
 			}
+			close(user->udp_sockfd);
+			user->udp_sockfd = -1;
 			user->sockfd = -1;
 			user->login_t = -1;
 			//user->login_pid = -1; @[Warn]:暂时不知道会不会用到
@@ -147,7 +149,9 @@ void pthread_Recv(struct User *user)
 			strcpy(user->msg_id_text,"null");
 			strcpy(user->msg_key_text,"null");
 			strcpy(user->inet_ip_text,"null");	
-			
+
+			close(user->udp_sockfd);
+			user->udp_sockfd = -1;
 			user->sockfd = -1;
 			user->group_state = 0;
 			user->online_state = 0;
@@ -179,6 +183,8 @@ void pthread_Recv(struct User *user)
 			strcpy(user->msg_key_text,"null");
 			strcpy(user->inet_ip_text,"null");	
 			
+			close(user->udp_sockfd);
+			user->udp_sockfd = -1;
 			user->sockfd = -1;
 			user->group_state = 0;
 			user->online_state = 0;

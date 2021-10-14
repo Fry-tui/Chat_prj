@@ -39,11 +39,12 @@
 #define LEGAL 0
 #define ILLEGAL -1
 #define LENILLEGAL 1
-
+#define BUFFER_SIZE 1024
 /*************************************
  *         GLOBAL PROTOTYPES		 *
  ************************************/
 int curSockfd; /* 当前客户端的sockid */
+int udpSockfd; 
 char cur_ip_text[16]; /* 存储当前客户端的ip地址 */
 
 int msg_id; /* 消息队列标识符,消息队列创建成功后的放回值,用于消息队列通信 */
@@ -56,5 +57,7 @@ void sig_ctl(int);
 
 sem_t global_sem;               /* 登入后接收服务器消息的线程储存普通消息后会post一个信号量 */
 char global_sem_buf[1024];      /* 并把消息储存到这里供其他函数访问 */
+
+struct sockaddr_in udp_server;  /* udp连接用服务器结构体 */
 
 #endif

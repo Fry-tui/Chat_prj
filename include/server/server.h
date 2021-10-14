@@ -49,7 +49,7 @@
 #define LEGAL 0
 #define ILLEGAL -1
 #define LENILLEGAL 1
-
+#define BUFFER_SIZE 1024
 /************************************
  *      		ENUM				*
  ************************************/

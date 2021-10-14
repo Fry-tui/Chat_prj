@@ -38,9 +38,10 @@ void reactRegister(int sockfd,char inet_ip[])
 	struct Buffer *buffer;
 	//接收合理的手机号 
 	strcpy(user.telenumber,myRecv(sockfd));
-	
+	//printf("recv tele=%s\n",user.telenumber);
 	//获取验证码并发送 
 	while(1){
+		//printf("codecnt\n");
 		srand(time(NULL));
 		num = rand()%9000+1000;
 		sprintf(buf,"%d",num);//转化成char类型 
@@ -173,7 +174,7 @@ void reactRegister(int sockfd,char inet_ip[])
 * @return: 无返回值
 ****************************************************************************************
 */
-void reactLogin(int sockfd,char inet_ip[])
+void reactLogin(int sockfd,char inet_ip[],int udp_sockfd,struct sockaddr_in server,struct sockaddr_in client)
 {
 	int i,num;
 	char buf[32];
@@ -272,6 +273,7 @@ void reactLogin(int sockfd,char inet_ip[])
 	
 	user->avail_flag = LEGAL;
 	user->sockfd = sockfd;
+	user->udp_sockfd = udp_sockfd;
 	user->preact_id = pthread_self();
 	//DPRINTF("int ovrt\n");
 
@@ -279,7 +281,10 @@ void reactLogin(int sockfd,char inet_ip[])
 	user->online_state=1;
 	user->login_t = time(NULL);
 	//DPRINTF("set over\n");
-
+	
+	user->server = server;
+	user->client = client;
+	
 	/* 存档 */
 	writeFile(USER);
 	//DPRINTF("write over\n");
@@ -313,7 +318,8 @@ void reactLogin(int sockfd,char inet_ip[])
 	strcpy(user->msg_id_text,"null");
 	strcpy(user->msg_key_text,"null");
 	strcpy(user->inet_ip_text,"null");	
-	
+
+	user->udp_sockfd = -1;
 	user->sockfd = -1;
 	user->group_state = 0;
 	user->online_state = 0;
@@ -322,6 +328,7 @@ void reactLogin(int sockfd,char inet_ip[])
 	user->duration += (time(NULL)-user->login_t);
 	user->precv_id = 0;
 	user->preact_id = 0;
+	
 	//保存修改结果
 	writeFile(USER);
 	//提示结束并结束响应线程

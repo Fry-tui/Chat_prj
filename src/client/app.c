@@ -67,6 +67,9 @@ void clientRegister(void)
 		//接收号码
 		if(recv(curSockfd,code,8,0)<0)
 			perror("recv");
+		
+		//printf("code=%s\n",code);
+
 
 		infoCrtCode(code);//弹出验证码
 		printf("输入(验证码):");

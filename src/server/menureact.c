@@ -30,11 +30,31 @@ void reactMainMenu(int *sockfd)
 {
 	char buf[1024]; /* 存放从客户端接收到的数据 */
 	char inet_ip[32]; /* 存放网络地址号 */
+
+	int udp_sockfd;
+	struct sockaddr_in server,client;
+	
 	pthread_detach(pthread_self());	/*修改线程资源等级,意外结束时自动释放资源*/
 	
 	/* 接收进程的IP地址,做登入前的zenity缓冲通道名 */
 	strcpy(inet_ip,myRecv(*sockfd));
 
+	if(send(*sockfd,"syn",32,0)<0)	/* 发送同步信号 */
+		perror("send");
+	
+	/* 创建UDP连接 */
+	strcpy(buf,myRecv(*sockfd));	/* 接收端口号 */
+	if((udp_sockfd = socket(AF_INET,SOCK_DGRAM,0))<0)	/* 获取udp_sockfd */
+		perror("socket");
+	memset(&server,0,sizeof(server));
+	server.sin_family= AF_INET;
+    server.sin_port = htons(atoi(buf));
+    server.sin_addr.s_addr = htonl(INADDR_ANY);
+	if((bind(udp_sockfd,(struct sockaddr*)&server,sizeof(server)))==-1)
+		perror("bind");
+
+	DPRINTF("[ \033[34mInfo\033[0m ] UDP连接建立完成,udp标识号:%d sockfd=%d\n",udp_sockfd,*sockfd);
+	
 	while(1){
 		//接收选项
 		strcpy(buf,myRecv(*sockfd)); /* 阻塞接收客户端消息,若成功返回消息内容 */
@@ -43,14 +63,15 @@ void reactMainMenu(int *sockfd)
 		if(strcmp(buf,"1")==0){
 			reactRegister(*sockfd,inet_ip);
 		}else if(strcmp(buf,"2")==0){
-			reactLogin(*sockfd,inet_ip);
+			reactLogin(*sockfd,inet_ip,udp_sockfd,server,client);
 		}else if(strcmp(buf,"3")==0){
 			//reactSet();
 		}else if(strcmp(buf,"4")==0){
 			//reactDes(*sockfd); 
 		}else if(strcmp(buf,"5")==0){
 			//结束该客户端的响应进程
-			close(*sockfd);
+			close(*sockfd);	/* 关闭socket号 */
+			close(udp_sockfd); /* 关闭udp socket号 */
 	        printf("[ \033[34mInfo\033[0m ] 客户端%d",*sockfd);
 	        printf(" \033[33m已正常结束\033[0m\n");
 			sleep(1);
@@ -145,8 +166,10 @@ void reactUserMenu(struct User *user)
 		}else if(strcmp(buf,"13")==0){
 			//groChat();
 		}else if(strcmp(buf,"14")==0){
-			//sendFile();
+			sendFile(user);
 		}else if(strcmp(buf,"15")==0){
+			//recvFile(user);
+		}else if(strcmp(buf,"16")==0){
 			//cancelUser(user);
 		}else if(strcmp(buf,"#")==0){
 			listAddMsg(user);
@@ -196,9 +219,8 @@ void reactRootMenu(int sockfd,char inet_ip[])
 			offLineUser(sockfd,inet_ip);
 		}else if(strcmp(buf,"3")==0){
 			listLinklistU(sockfd);
-			//printf("exit function\n");
 		}else if(strcmp(buf,"4")==0){
-			//bcAnnouncement();
+			bcAnnouncement(sockfd);
 		}else if(strcmp(buf,"5")==0){
 			listLinklistG();
 			if(send(sockfd,"end_list",32,0)<0)

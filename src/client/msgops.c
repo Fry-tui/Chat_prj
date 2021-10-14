@@ -218,3 +218,57 @@ void zenityOps(char buf[])
 	}
 	return;
 }
+
+
+/*
+****************************************************************************************
+*                                 	读取缓冲数据(file_seceltion)
+*
+* @Desc  : 参考server.c临时改动
+****************************************************************************************
+*/
+void readBuffer(int type,int cnt,char suffix[],struct Buffer *buffer,char inet_ip[])
+{
+	int i;
+	int fd;				/* 接收文件打开结果的标识符 */
+	int res=1;			/* 存放文件读取的结果，-1:失败;0:read前光标已末尾;>0:读取到的数据长度 */
+	char src[64];		/* 存放拼接好的路径:比如'./data/ipbuffer/127.0.0.1_form' */
+	char buf[1024],out[cnt][32]; /* buf:暂存字符串	out:数据输出字符串数组	*/
+	memset(buf,0,1024);
+	/* 打开文件 */
+	//路径格式:"./data/ipbuffer/[inet_ip][suffix]"
+	//示例路径:"./data/ipbuffer/127.0.0.1_form"
+	strcpy(src,"./data/ipbuffer/");
+	strcat(src,inet_ip);
+	strcat(src,suffix);
+	
+	fd = open(src, O_RDONLY);	/* 只读打开,获取文件描述符 */
+	//DPRINTF("[ \033[34mInfo\033[0m ] 缓冲路径:%s|读取结果:%d\n",src,fd);
+	
+	/* @[Warn]:其实判断长度过长也还是有bug如果输入|抑或是用户名110位后面都合格也会通过 */
+	/* 解决了一半,一旦数据读了两次,直接退出,言下之意总数据超过96个 */
+	if(fd!=-1){					/* 判断打开成功与否 */
+		//printf("fd!=-1\n");	
+		while(res>0){	/* 一次直接读取1024位的数据 */
+			res = read(fd,buf,sizeof(buf));
+			if(res==-1){
+				printf("[ \033[31mError\033[0m ] msgops.c readBuffer():读取失败[res:%d]\n",res);
+				buffer->avail_flag = ILLEGAL; /* 失效结构体 */
+				return;
+			}
+		}
+	}
+	
+	strcpy(buffer->src,buf);
+
+	//做处理 buf含有一个\n需要处理掉
+	//printf("msglen=%d\n",strlen(buffer->src)-1);
+	buffer->src[strlen(buffer->src)-1] = '\0';
+
+	//使其有效
+	buffer->avail_flag = LEGAL;
+
+	//关闭文件指针
+	close(fd);
+	return;
+}

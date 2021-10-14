@@ -3,7 +3,7 @@
 
 #include "server.h"
 
-void reactLogin(int ,char[]);
 void reactRegister(int ,char[]);
+void reactLogin(int ,char[],int,struct sockaddr_in,struct sockaddr_in);
 
 #endif

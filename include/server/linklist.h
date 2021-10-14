@@ -81,6 +81,7 @@ struct User{
 	char telenumber[16]; /* 手机号 */
 
 	int sockfd;	/* 登入后的socket号 [Default:-1] */
+	int udp_sockfd;	/* 用于udp通信的sock号 */
 	int avail_flag; /* 判断结构体是否有效 0:有效结构体 -1[ILLEGAL]:无效数据|非法退出*/
 	int add_num; /* 验证消息数量 [Default:0]*/
 	int friend_num; /* 好友数量  [Default:0]*/
@@ -104,6 +105,9 @@ struct User{
 	pthread_t preact_id; /* 客户端的响应线程id [0]:无符号长整型*/
 	pthread_t precv_id; /* 客户端登入后处理消息的id [0]:无符号长整型*/
 	struct Friend friends[32]; /* 好友结构体数组 */
+
+	struct sockaddr_in server;
+	struct sockaddr_in client;
 	
 };
 

@@ -34,6 +34,8 @@ void mainMenu()
 	char buf[1024]; 
 	int value_num=2;
 	char *value[value_num];
+    
+    int addrlen=sizeof(struct sockaddr);
 	Msg msg_send = {1,"none"}; /* 用于存放需要通过消息队列传递的消息 */
 	
 	//打开显示屏
@@ -58,7 +60,32 @@ void mainMenu()
 	/* 把IP地址发送给客户端 */
 	if(send(curSockfd,inet_ip_text,32,0)<0)
 		perror("send");
-	
+
+	if(recv(curSockfd,buf,8,0)<0) /* 等待同步信号 */
+		perror("recv");
+	printf("buf=%s\n",buf);
+	/* 创建UDP连接 */
+	/* 发送运行脚本的第三个参数给服务器,做udp连接的端口号,同时也是与显示屏建立连接的关键字 */
+	if(send(curSockfd,msg_key_text,32,0)<0)		
+		perror("send");
+	if((udpSockfd = socket(AF_INET,SOCK_DGRAM,0))<0)	/* 获取udp号 */
+		perror("file sockfd");
+	memset(&udp_server,0,sizeof(udp_server));
+    udp_server.sin_family= AF_INET;
+    udp_server.sin_port = htons(msg_key);
+	if(inet_pton(AF_INET,"127.0.0.1",&udp_server.sin_addr)<0)
+		perror("inet_pton");
+
+	/* 清空杂类@[Warn]:但是不懂哪里来的杂类消息 */
+	if(recv(curSockfd,buf,8,0)<0)
+		perror("recv");
+	if(recv(curSockfd,buf,8,0)<0)
+		perror("recv");
+	if(recv(curSockfd,buf,8,0)<0)
+		perror("recv");
+
+	system("zenity --info --text=已建立UDP链接 --no-wrap --title=UDP连接");
+
 	while(1){
 		msg_send.choice=IMAINMENU;
 		myMsgSend(msg_send); /* 发送页面选项 */
@@ -68,6 +95,7 @@ void mainMenu()
 		//发送选项 
 		if(send(curSockfd,buf,1024,0)<0)
 			perror("send");
+		//printf("main(while)sockfd:%d\n",curSockfd);
 		//判断选项
 		if(strcmp(buf,"1")==0){
 			clientRegister();
@@ -79,9 +107,9 @@ void mainMenu()
 			//myDes();
 		}else if(strcmp(buf,"5")==0){	/* 退出客户端 */
 			if(msg_id>=0)
-				msgctl(msg_id,IPC_RMID,0); 
-			killDisplay(msg_key_text);
-			printf("%s","\033[1H\033[2J"); 
+				msgctl(msg_id,IPC_RMID,0); /* 关闭消息队列 */
+			killDisplay(msg_key_text);	/* 杀死显示屏 */
+			printf("%s","\033[1H\033[2J"); /* 换页 */
 			exit(0);
 		}else if(strcmp(buf,"ls")==0){	/* 罗列列表 */
 			//等待结果
@@ -176,9 +204,11 @@ void userMenu(void)
 		}else if(strcmp(buf,"13")==0){
 			//groChat();
 		}else if(strcmp(buf,"14")==0){
-			//sendFile();
+			sendFile();
 		}else if(strcmp(buf,"15")==0){
-			//cancelUser(user);
+			//recvFile();
+		}else if(strcmp(buf,"16")==0){
+			//cancelUser();
 		}else if(strcmp(buf,"#")==0){
 			listAddMsg();
 			disposeAddMsg();
@@ -220,7 +250,7 @@ void rootMenu(void)
 		
 		//判断选项
 		if(strcmp(buf,"1")==0){
-			rmUser();
+			rmUser();	/* 移除用户 */
 		}else if(strcmp(buf,"2")==0){
 			offLineUser();
 		}else if(strcmp(buf,"3")==0){
@@ -233,7 +263,7 @@ void rootMenu(void)
 				DPRINTF("罗列失败(%s)\n",buf);
 			}
 		}else if(strcmp(buf,"4")==0){
-			//bcAnnouncement();
+			bcAnnouncement();
 		}else if(strcmp(buf,"5")==0){
 			if(recv(curSockfd,buf,32,0)<0)
 				perror("recv");

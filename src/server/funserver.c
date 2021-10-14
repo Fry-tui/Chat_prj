@@ -1388,3 +1388,40 @@ void rmUser(int sockfd,char inet_ip[])
 	}
 	return;
 }
+
+/*
+****************************************************************************************
+*                                 	 广播消息
+* @Desc  : 
+* @return: 无返回值
+****************************************************************************************
+*/
+void bcAnnouncement(int sockfd)
+{
+	char buf[1024];
+	char send_text[1024];
+	LinklistU u = U->next;
+
+	/* 获取需要广播的消息 */
+	if(recv(sockfd,buf,1024,0)<0)
+		perror("recv");
+	
+	while(u){
+		if(u->user.online_state==1){
+			/* 发送给在线用户 */
+			//发送弹窗类消息  		   示例："!out|#公告消息:xxx!"
+			strcpy(send_text,"!out|#公告消息:");
+			strcat(send_text,buf);
+			strcat(send_text,"\0");
+			if(send(u->user.sockfd,send_text,1024,0)<0) /* 给被下线的用户发送验证消息 */
+				perror("send");
+		}
+		u = u->next;
+	}
+
+	if(send(sockfd,"-exit",1024,0)<0)
+		perror("recv");
+	
+	return;
+}
+
