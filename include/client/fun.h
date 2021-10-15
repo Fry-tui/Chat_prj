@@ -10,6 +10,8 @@
 int setPwd(void);
 void priChat(void);
 void groupChat(void);
+void recvFile(void);
+void sendFile(void);
 void addFriend(void);
 void joinGroup(void);
 void listAddMsg(void);
@@ -27,6 +29,7 @@ void middleText(char[]);
 void rmUser(void);
 void offLineUser(void);
 void closeServer(void);
+void bcAnnouncement(void);
 
 
 #endif

@@ -26,6 +26,8 @@ void disposeAddMsg(struct User * user);
 void rmUser(int ,char[]);
 void closeServer(int);
 void offLineUser(int,char[]);
+void bcAnnouncement(int);
+
 
 
 

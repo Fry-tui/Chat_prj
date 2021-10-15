@@ -206,7 +206,7 @@ void userMenu(void)
 		}else if(strcmp(buf,"14")==0){
 			sendFile();
 		}else if(strcmp(buf,"15")==0){
-			//recvFile();
+			recvFile();
 		}else if(strcmp(buf,"16")==0){
 			//cancelUser();
 		}else if(strcmp(buf,"#")==0){

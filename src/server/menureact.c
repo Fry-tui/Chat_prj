@@ -53,6 +53,7 @@ void reactMainMenu(int *sockfd)
 	if((bind(udp_sockfd,(struct sockaddr*)&server,sizeof(server)))==-1)
 		perror("bind");
 
+	printf("server.sin_port=%d\n",server.sin_port);
 	DPRINTF("[ \033[34mInfo\033[0m ] UDP连接建立完成,udp标识号:%d sockfd=%d\n",udp_sockfd,*sockfd);
 	
 	while(1){
@@ -168,7 +169,7 @@ void reactUserMenu(struct User *user)
 		}else if(strcmp(buf,"14")==0){
 			sendFile(user);
 		}else if(strcmp(buf,"15")==0){
-			//recvFile(user);
+			recvFile(user);
 		}else if(strcmp(buf,"16")==0){
 			//cancelUser(user);
 		}else if(strcmp(buf,"#")==0){

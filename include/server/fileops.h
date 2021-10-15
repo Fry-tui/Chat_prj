@@ -21,5 +21,6 @@ struct User * init_user_file;
 void readFile(void);
 void writeFile(int);
 void sendFile(struct User *user);
+void recvFile(struct User *user);
 
 #endif
