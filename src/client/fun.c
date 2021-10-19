@@ -937,6 +937,9 @@ int setPwd(void)
 				continue;
 			}
 			
+			if(send(curSockfd,"-recv_ready",32,0)<0)
+				perror("send");
+
 			//等待服务器读取判断结果
 			sem_wait(&global_sem);
 			strcpy(buf,global_sem_buf);
@@ -982,9 +985,11 @@ int setPwd(void)
 		}	
         
     }
+
+	if(send(curSockfd,"-exit_setpwd",32,0)<0)
+		perror("send");
     return SUCCESS;
 }
-
 /*
 ****************************************************************************************
 *                                 	 发送文件
@@ -1071,6 +1076,7 @@ void sendFile(void)
 		perror("send");
 	
 	if(res==0){
+		
 		sem_wait(&global_sem);	/* 等待同步信号 */
 		//读取缓冲区的文件名
 		memset(buffer->src,0,sizeof(buffer->src));
@@ -1085,7 +1091,7 @@ void sendFile(void)
 				break;
 		}
 		strcpy(filename,buffer->src+(strlen(buffer->src)-j)+1);
-		printf("path=%s,name=%s\n",buffer->src,filename);
+		//printf("path=%s,name=%s\n",buffer->src,filename);
 
 		//发送文件名
 		strcpy(send_text,"-");
@@ -1102,7 +1108,7 @@ void sendFile(void)
 		strcpy(msg_send.text,"\t#system msg:\33[32m开始传送文件\33[0m\n");
 		myMsgSend(msg_send);
 		//发送文件
-		printf("udpSockfd=%d\n",udpSockfd);
+		//printf("udpSockfd=%d\n",udpSockfd);
 		while((fileTrans = fread(buf,sizeof(char),BUFFER_SIZE,fp))>0){
 			cnt++;
 			sprintf(send_text,"%d",cnt);
@@ -1112,8 +1118,10 @@ void sendFile(void)
 			strcat(msg_send.text,"\33[0m s\n\0");
 			myMsgSend(msg_send);
 
-			if(sendto(udpSockfd,buf,fileTrans,0,(struct sockaddr *)&udp_server,addrlen)<0)
+			if(sendto(udpSockfd,buf,fileTrans,0,(struct sockaddr *)&udp_server,addrlen)<0){
+				perror("send");
 				break;
+			}
 			//printf("send successful!\n");
 			if(fileTrans < BUFFER_SIZE)
 				break;
@@ -1133,6 +1141,7 @@ void sendFile(void)
 		perror("send");
 	return;
 }
+
 
 /*
 ****************************************************************************************
@@ -1172,11 +1181,14 @@ void recvFile(void)
 	strcpy(msg_send.text,"\t-----------处理文件-----------\n");
 	myMsgSend(msg_send);
 
+	/* 接收文件数量 */
 	sem_wait(&global_sem);
 	strcpy(recv_text,global_sem_buf);
 
+	/* 转化成整形 */
 	cnt = atoi(recv_text);
 
+	/* 逐条接受并封装发送到显示屏进行显示 */
 	for(i=0;i<cnt;i++){
 		if(send(curSockfd,"-name_ready",32,0)<0)
 			perror("send");
@@ -1198,12 +1210,15 @@ void recvFile(void)
 		myMsgSend(msg_send);
 	}
 	
+	/* 循环选择处理的对象 */
 	while(1){
 		printf("请输入(文件序号):");
 		scanf("%s",recv_text);
 
+		/* 将接收的选项转化成整形方便判断 */
 		index = atoi(recv_text);
 
+		/* 判断选项是否合法 */
 		if(index<1||index>cnt){
 			system("zenity --error --title=结束文件 --text=输入有误\n");
 			if(send(curSockfd,"-exit_scanf",32,0)<0)
@@ -1211,12 +1226,14 @@ void recvFile(void)
 			return;
 		}
 
+		/* 如果合法》》》弹出询问框 并获取询问结果 */
 		strcpy(command,"zenity --question --title=请求接收 --ok-label=同意 --cancel-label=拒绝 --text=是否接收");
 		strcat(command,user_name[index-1]);
 		strcat(command,"发给你的");
 		strcat(command,file_name[index-1]);
-		res = system(command);
+		res = system(command);	/* 同意:res[0]  不同意:res[256] */
 
+		/* 将选项同步发给服务器 */
 		sprintf(recv_text,"%d",res);
 		strcpy(send_text,"-");
 		strcat(send_text,recv_text);
@@ -1238,6 +1255,7 @@ void recvFile(void)
 	strcat(command,"_form");
 	res = system(command); /* 0:成功 256:退出 */
 
+	/* 发送文件选择框的操作结果 */
 	sprintf(recv_text,"%d",res);
 	strcpy(send_text,"-");
 	strcat(send_text,recv_text);
@@ -1268,15 +1286,14 @@ void recvFile(void)
 		strcat(file_path,"/");
 		strcat(file_path,file_name[index-1]);
 		printf("filepath=%s\n",file_path);
-
+		/*
 		//发送存储路径
 		strcpy(send_text,"-");
 		strcat(send_text,file_path);
 		if(send(curSockfd,send_text,1024,0)<0)
 			perror("send");
-		
-		//fp = fopen(file_path,"w");
-		/*
+		*/
+		fp = fopen(file_path,"w");
 		if(fp!=NULL){
 			strcpy(msg_send.text,"\t#system msg:\33[32m开始接收文件\33[0m\n");
 			myMsgSend(msg_send);
@@ -1285,16 +1302,24 @@ void recvFile(void)
 			DPRINTF("[ \033[31mError\033[0m ] recvFile():文件打开失败！\n");
 			return;
 		}
-		*/
 		cnt=0;
+		/* 给出本方地址 */
+		if(sendto(udpSockfd,"cpk",32,0,(struct sockaddr *)&udp_server,addrlen)<0){
+			perror("send");
+			return;
+		}
 		//接收文件
 		while(1){
 			//printf("udpSockfd=%d\n",udpSockfd);
-			//fileTrans=recvfrom(udpSockfd,buf,BUFFER_SIZE,0,(struct sockaddr *)&client,&addrlen);
+			fileTrans=recvfrom(udpSockfd,buf,BUFFER_SIZE,0,(struct sockaddr *)&udp_server,&addrlen);
 			sem_wait(&global_sem);
 			strcpy(recv_text,global_sem_buf);
+			
+			len = fwrite(buf,sizeof(char),fileTrans,fp);
+
 			if(strcmp(recv_text,"cpover")==0){
 				system("zenity --info --text=接收完毕 --no-wrap --title=接收文件");
+				fclose(fp);
 				return;
 			}
 			cnt = atoi(recv_text);
@@ -1303,8 +1328,6 @@ void recvFile(void)
 			strcat(msg_send.text,"\33[0m s\n\0");
 			myMsgSend(msg_send);
 
-			//len = fwrite(buf,sizeof(char),fileTrans,fp);
-			/*
 			if(fileTrans<BUFFER_SIZE){
 				//printf("finish writing!\n");
 				break;
@@ -1312,12 +1335,11 @@ void recvFile(void)
 				//printf("write successful!\n");
 				//break;
 			}
-			*/
 			bzero(buf,BUFFER_SIZE);
 		}
 		
-		
-		//fclose(fp);
+		system("zenity --info --text=接收完成,快去查看吧 --no-wrap --title=接收文件");
+		fclose(fp);
 
 	}else{
 		strcpy(msg_send.text,"\033[33m#\033[0msystem msg: 接收文件 \033[31m已被中断,exiting..\033[0m\n");
@@ -1723,3 +1745,4 @@ void bcAnnouncement(void)
 
 	return;
 }
+

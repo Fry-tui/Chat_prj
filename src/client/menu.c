@@ -84,7 +84,7 @@ void mainMenu()
 	if(recv(curSockfd,buf,8,0)<0)
 		perror("recv");
 
-	system("zenity --info --text=已建立UDP链接 --no-wrap --title=UDP连接");
+	//system("zenity --info --text=已建立UDP链接 --no-wrap --title=UDP连接");
 
 	while(1){
 		msg_send.choice=IMAINMENU;
@@ -184,13 +184,14 @@ void userMenu(void)
 		}else if(strcmp(buf,"6")==0){
 			//sendRedp();
 		}else if(strcmp(buf,"7")==0){
+			//listRedp();
 			//grabRedp();
 		}else if(strcmp(buf,"8")==0){
 			addFriend();
 		}else if(strcmp(buf,"9")==0){
-			
+			//userPush();	
 		}else if(strcmp(buf,"10")==0){
-			//inquireBalance();
+			//
 		}else if(strcmp(buf,"11")==0){
 			res = setPwd();
 			if(res == SUCCESS){
@@ -202,7 +203,7 @@ void userMenu(void)
 		}else if(strcmp(buf,"12")==0){
 			//delFriend();
 		}else if(strcmp(buf,"13")==0){
-			//groChat();
+			//publicChat();
 		}else if(strcmp(buf,"14")==0){
 			sendFile();
 		}else if(strcmp(buf,"15")==0){

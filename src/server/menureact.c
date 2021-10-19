@@ -144,17 +144,24 @@ void reactUserMenu(struct User *user)
 			listMyGroups(user);
 			groupChat(user);
 		}else if(strcmp(buf,"6")==0){
-			//sendRedp();
+			//sendRedp(user);
 		}else if(strcmp(buf,"7")==0){
+			//listRedp(user);
 			//grabRedp();
 		}else if(strcmp(buf,"8")==0){
 			addFriend(user);
 			detime = 10000000;
-			while(detime--);	/* 延时0.1s */
+			while(detime-->=0);	/* 延时0.1s */
 		}else if(strcmp(buf,"9")==0){
-			
+			//userPush(user);
 		}else if(strcmp(buf,"10")==0){
-			//inquireBalance();
+			/*
+			strcpy(send_text,"!out|余额:￥");
+			sprintf(buf,"%.2f",user->balance);
+			strcat(send_text,buf);
+			if(send(user->sockfd,send_text,1024,0)<0)
+				perror("send");
+			*/
 		}else if(strcmp(buf,"11")==0){
 			res = setPwd(user);
 			if(res==SUCCESS){
@@ -165,7 +172,7 @@ void reactUserMenu(struct User *user)
 		}else if(strcmp(buf,"12")==0){
 			//delFriend();
 		}else if(strcmp(buf,"13")==0){
-			//groChat();
+			//publicChat();
 		}else if(strcmp(buf,"14")==0){
 			sendFile(user);
 		}else if(strcmp(buf,"15")==0){

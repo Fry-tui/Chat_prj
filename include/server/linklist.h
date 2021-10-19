@@ -9,30 +9,21 @@
 /*************************************
  *      		STRUCT				*
  ************************************/
-/**
- * struct Para
- * @id: Thread ID, used to close the thread
- * @name: current user name
- */
-struct Para{
-	//参数结构体:解决线程创建时只能传一个参数的问题
-	pthread_t id;
-	char name[32];
-};
 
 /**
  * struct Buffer
- * @avail_flag: 结构体有效与否
+ * @avail_flag: 结构体有效
  * @name: 名字类
  * @pwd : 密码类
  * @psd : 确认密码类
  */
 struct Buffer{
-	int avail_flag; /* 判断结构体是否有效 0[LEGAL]:有效结构体 -1[ILLEGAL]:无效数据*/
-	char name[32];
-	char pwd[32];
-	char psd[32]; 
-	char text[32];
+	/* 有效标志位主要是用于readBuffer(),具体的使用方法,在那边写的比较明确 */
+	int avail_flag; /* 判断结构体是否有效 [LEGAL]:有效结构体 [ILLEGAL]:无效数据*/
+	char name[32]; /* 存放用户名字符串 */
+	char pwd[32];	/* 存放密码字符串 */
+	char psd[32]; /* 存放确认密码的字符串 */
+	char text[32]; /* 存放一些文本信息 */
 };
 
 /**
@@ -42,8 +33,8 @@ struct Buffer{
  * @chat_msg: The content of chat messages
  */
 struct Friend{
-	char f_name[32];	/* 好友名字 */
-	struct User* puser; /* 指向具体的好友 */
+	char f_name[32];	/* 好友名字字符串,原本是不需要的,但是updateLink()函数会用到 */
+	struct User* puser; /* 指向具体的好友的用户节点地址 */
 	/*@[Warn]:用户注销等相关操作需要销毁所有相关好友的好友节点*/
 	bool chat_state; /* 和该好友的聊天标志 [0]:关闭 [1]:打开*/
 	int chat_len;	/* 聊天记录的数量 */
@@ -76,12 +67,13 @@ struct User{
 	char password[32]; /* 密码 */
 	char login_pid[16];	/* 进程号:获取客户端进程号,防止意外关闭 [默认"null"] */
 	char msg_id_text[16]; /* 消息队列标识符:用于关闭消息队列 [默认"null"] 主要是myRecv需要使用 */
-	char msg_key_text[16]; /* 消息队列关键字:用于杀死调用同一消息队列的进程 [默认"null"] */
-	char inet_ip_text[16]; /* 存放登入的客户端的ip地址 用户buffer通信*/
+	char msg_key_text[16]; 	/* 消息队列关键字:用于杀死调用同一消息队列的进程 [默认"null"] */
+							/* 同时用作创建udp连接的端口号,不过值是在登入前直接传递给服务器的 */
+	char inet_ip_text[16]; /* 存放登入的客户端的ip地址,用于用户buffer通信,标识不同客户端产生的缓冲数据*/
 	char telenumber[16]; /* 手机号 */
 
-	int sockfd;	/* 登入后的socket号 [Default:-1] */
-	int udp_sockfd;	/* 用于udp通信的sock号 */
+	int sockfd;	/* 登入后的tcp通信的socket号 [Default:-1] */
+	int udp_sockfd;	/* 用于udp通信的socket号	     [Default:-1] */
 	int avail_flag; /* 判断结构体是否有效 0:有效结构体 -1[ILLEGAL]:无效数据|非法退出*/
 	int add_num; /* 验证消息数量 [Default:0]*/
 	int friend_num; /* 好友数量  [Default:0]*/
@@ -91,23 +83,26 @@ struct User{
 	char add_msg[32][128]; /* 验证消息具体内容 */
 	char unread_msg[128][128]; /* 未读消息 */
 	
-	bool group_state; /* 群聊状态 [Default:0]*/
+	bool group_state; /* 公聊状态 [Default:0] 	其实起名应为public_state但是因为功能没有实现,所以就没有更名*/
 	bool online_state; /* 在线状态 [Default:0] [在线:1]*/
 
 	float balance; /* 余额 */
 
+	//用法:登入后,客户端服务器的收发就是通过线程pthread_recv集中处理的
+	//		这时候消息的存储,就可以利用下面的两个成员完成
 	/*	因为多线程同步运行,所以需要把消息上锁,判断好消息类型后,做对应的释放*/
 	sem_t sem[32]; /* 信号量,同步处理接收到的消息 */
 	char sem_buf[32][128]; /* 与信号量数组一一对应,存放接收到的消息 */
 	/* @[Warn]:有些同类型的数据会过来多条,关系需要理清 */
+	
 	time_t login_t; /* 上线时间 */
 	time_t duration; /* 在线时长 */
 	pthread_t preact_id; /* 客户端的响应线程id [0]:无符号长整型*/
 	pthread_t precv_id; /* 客户端登入后处理消息的id [0]:无符号长整型*/
 	struct Friend friends[32]; /* 好友结构体数组 */
 
-	struct sockaddr_in server;
-	struct sockaddr_in client;
+	struct sockaddr_in server;	/* udp通信的服务器结构体 */
+	struct sockaddr_in client;	/* udp通信的客户端结构体 */
 	
 };
 
@@ -184,7 +179,7 @@ typedef struct LnodeG{
 /*************************************
  *         GLOBAL PROTOTYPES		 *
  ************************************/
-LinklistU U;	//名媛链表头节点 
+LinklistU U;	//名媛链表头节点 定义在这里可以直接全局访问
 LinklistR R;	//红包链表头节点 
 LinklistG G;	//群聊链表头节点 
 
@@ -199,6 +194,7 @@ int modUserNode(struct User);
 int delUserNode(int,char[],int);
 
 void initLink(void);
+void updateLink(void);
 void listLinklistU(int);
 void listLinklistG(void);
 

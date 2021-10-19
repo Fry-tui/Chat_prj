@@ -31,6 +31,5 @@ void offLineUser(void);
 void closeServer(void);
 void bcAnnouncement(void);
 
-
 #endif
 

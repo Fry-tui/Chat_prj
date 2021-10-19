@@ -5,18 +5,18 @@
 *                                         (c) Copyright 2021/09/30
 *
 * @File    : server.c
-* @Author  : yqxu
+* @Author  : xuyq
 *
 * @Description:
 * ----------
-*  创建服务器,等待客户端的连接
+*  创建服务器,等待客户端的TCP连接,为每个连接上的客户端创建响应线程
 *
 * @History
-*  Version :    Time    :  Author :  		Description
+*  Version :    Time    :  Author :  		 Description
 *   v1.0   : 2021-09-30 :   yqxu  :   创建服务器,等待客户端的连接
 * 
 * 执行示例: 	./bin/server 端口号
-			./bin/serber 1000
+			./bin/server 1000
 *********************************************************************************************************
 */
 
@@ -26,35 +26,35 @@
 ****************************************************************************************
 *                                  主函数
 *
-* @Desc  : 实现socket套接字服务器的创建,等待客户端的连接,创建响应线程。
+* @Desc  : 实现socket套接字通信服务器的创建,等待客户端的连接,创建响应线程。
 *
 * @argc  : 参数个数
-* @argv[]: 参数数组,argv[2]用来存放端口号
+* @argv[]: 参数数组,argv[1]用来存放用于TCP连接的端口号
 *
 * @return: 默认返回0
 ****************************************************************************************
 */
 int main(int argc, char * argv [ ])
 {	
-	int *p;		/*用于存放客户端id,并作为参数,传入响应线程*/
-	pthread_t id;	/*线程id,动态分配线程*/
-	int sockfd,addrlen,newSockfd;	/*sockfd:服务器id*/	/*newSockfd:新客户端id号*/
+	int *p;		/*用于存放不同客户端的socket号,并作为参数,传入对应的响应线程*/
+	pthread_t id;	/*线程id,用于创建线程的时候动态分配线程id*/
+	int sockfd,addrlen,newSockfd;	/*sockfd:服务器id*/	/*newSockfd:新客户端id号,不断被更新*/
 	/* 实例化地址结构体 */
 	struct sockaddr_in my_addr,serv_addr;
-	serv_addr.sin_port = atoi(argv[1]); /*取参数1 即传入的端口号*/
+	serv_addr.sin_port = atoi(argv[1]); /*取参数1 即传入的端口号 1000*/
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	memset(serv_addr.sin_zero,0,8);
      
     //初始化链表
 	initLink();
-	//printf("afterInit:%d\n",cntGNode());
 	//读取本地文件
 	readFile();
-	//printf("afterRead:%d\n",cntGNode());
+	//更新聊表节点中的指针
 	updateLink();
 	
-	sem_init(&global_sem_cmd,0,1);	/* 初始值为1 */
+	sem_init(&global_sem_cmd,0,1);	/* 初始化信号量,初始值为1           */
+	/* 作用:
 	//global_command = (char *)malloc(sizeof(struct User)); /* 初始化:global_command */
 	
 	printf("%s","\033[1H\033[2J"); /*清屏输出*/

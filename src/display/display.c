@@ -99,14 +99,15 @@ void displayUserMenu(char num_text[])
 	printf ("\t|\t2   闺中密谈 \t    |\n");
 	printf ("\t|\t3   快乐建群 \t    |\n");
 	printf ("\t|\t4   加入群聊 \t    |\n");
-	printf ("\t|\t5   一起八卦 \t    |\n");
+	printf ("\t|\t5   找群叭叭 \t    |\n");
 	printf ("\t|\t6   豪气一下 \t    |\n");
 	printf ("\t|\t7   手气红包 \t    |\n");
 	printf ("\t|\t8   添加好友 \t    |\n");
+	printf ("\t|\t9   充值金额 \t    |\n");
 	printf ("\t|\t10  查询余额\t    |\n");
 	printf ("\t|\t11  修改密码\t    |\n");
 	printf ("\t|\t12  删除好友\t    |\n");
-	printf ("\t|\t13  找群叭叭\t    |\n");
+	printf ("\t|\t13  一起八卦\t    |\n");
 	printf ("\t|\t14  发送文件\t    |\n");
 	printf ("\t|\t15  接收文件\t    |\n");
 	printf ("\t|\t16  注销用户\t    |\n");
