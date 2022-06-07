@@ -224,7 +224,7 @@ void zenityOps(char buf[])
 ****************************************************************************************
 *                                 	读取缓冲数据(file_seceltion)
 *
-* @Desc  : 参考server.c临时改动
+* @Desc  : 参考server.c临时改动,server/bufops.c里的这个函数注释比较明确可以直接参考
 ****************************************************************************************
 */
 void readBuffer(int type,int cnt,char suffix[],struct Buffer *buffer,char inet_ip[])
